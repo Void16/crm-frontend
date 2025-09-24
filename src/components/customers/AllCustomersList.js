@@ -1,12 +1,11 @@
 import React from 'react';
-import { Mail, Phone, MessageSquare, Edit3, Trash2, User, Building2, UserCheck } from 'lucide-react';
+import { Mail, Phone, MessageSquare, Edit3, User, Building2, UserCheck } from 'lucide-react';
 
 const AllCustomersList = ({
   customers = [],
   user = { id: 1 },
   onAddInteraction = () => {},
-  onEditCustomer = () => {},
-  onDeleteCustomer = () => {}
+  onEditCustomer = () => {}
 }) => {
   // Sample data for demonstration
   const sampleCustomers = [
@@ -98,13 +97,6 @@ const AllCustomersList = ({
                     >
                       <Edit3 className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={() => onDeleteCustomer(customer.id)}
-                      className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                      title="Delete Customer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
                 )}
               </div>
@@ -157,13 +149,6 @@ const AllCustomersList = ({
                   >
                     <Edit3 className="h-4 w-4 mr-2" />
                     Edit
-                  </button>
-                  <button
-                    onClick={() => onDeleteCustomer(customer.id)}
-                    className="flex items-center px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
                   </button>
                 </div>
               </div>
