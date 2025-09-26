@@ -8,7 +8,6 @@ export const useAuth = () => {
 
   useEffect(() => {
     if (token && !user) {
-      // You might want to add a user validation endpoint
       const userData = localStorage.getItem('userData');
       if (userData) {
         setUser(JSON.parse(userData));
@@ -21,6 +20,16 @@ export const useAuth = () => {
     const result = await authAPI.login(credentials);
     
     if (result?.ok) {
+      // Check if 2FA is required (your Django API returns requires_2fa in the data)
+      if (result.data.requires_2fa) {
+        setLoading(false);
+        return { 
+          success: false, 
+          requires_2fa: true,
+          message: '2FA token required'
+        };
+      }
+      
       setToken(result.data.access);
       localStorage.setItem('token', result.data.access);
       localStorage.setItem('userData', JSON.stringify(result.data.user));
@@ -29,7 +38,10 @@ export const useAuth = () => {
       return { success: true };
     } else {
       setLoading(false);
-      return { success: false, message: 'Invalid credentials' };
+      return { 
+        success: false, 
+        message: result?.data?.error || 'Invalid credentials' 
+      };
     }
   };
 
@@ -37,22 +49,18 @@ export const useAuth = () => {
     setLoading(true);
     const result = await authAPI.register(userData);
     
-    console.log('Register API result:', result); // Debug log
+    console.log('Register API result:', result);
     
     if (result?.ok) {
       setLoading(false);
       return { success: true };
     } else {
-      // Handle different error response formats from your Django API
       let errorMessage = 'Registration failed';
       
       if (result?.data) {
-        // Handle your Django API's error format
         if (result.data.error) {
           errorMessage = result.data.error;
-        } 
-        // Handle other potential error formats
-        else if (result.data.username) {
+        } else if (result.data.username) {
           errorMessage = result.data.username[0];
         } else if (result.data.email) {
           errorMessage = result.data.email[0];

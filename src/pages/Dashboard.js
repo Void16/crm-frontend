@@ -16,7 +16,7 @@ import AuditLogs from '../components/audit/AuditLogs';
 import Notification from '../components/common/Notification';
 
 const Dashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('customers');
+  const [activeTab, setActiveTab] = useState(user?.user_type === 'admin' ? 'customers' : 'my-customers');
   const [customers, setCustomers] = useState([]);
   const [myCustomers, setMyCustomers] = useState([]);
   const [interactions, setInteractions] = useState([]);
@@ -52,8 +52,11 @@ const Dashboard = ({ user, onLogout }) => {
     
     setLoading(true);
     try {
-      const customersResult = await customerAPI.getAll();
-      if (customersResult?.ok) setCustomers(customersResult.data);
+      // Admin can see all customers, employees only see their own
+      if (user.user_type === 'admin') {
+        const customersResult = await customerAPI.getAll();
+        if (customersResult?.ok) setCustomers(customersResult.data);
+      }
 
       const myCustomersResult = await customerAPI.getMyCustomers();
       if (myCustomersResult?.ok) setMyCustomers(myCustomersResult.data);
@@ -230,19 +233,30 @@ const Dashboard = ({ user, onLogout }) => {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setMobileMenuOpen(false); // Close mobile menu when tab changes
+    setMobileMenuOpen(false);
   };
 
-  const tabItems = [
-    { id: 'customers', label: 'All Customers', icon: Users },
-    { id: 'my-customers', label: 'My Customers', icon: User },
-    { id: 'interactions', label: 'Interactions', icon: MessageSquare },
-    ...(user?.user_type === 'admin' ? [
-      { id: 'employees', label: 'Employees', icon: Settings },
-      { id: 'reports', label: 'Reports', icon: BarChart3 },
-      { id: 'audit', label: 'Audit Logs', icon: FileText }
-    ] : [])
-  ];
+  // Define tabs based on user type
+  const getTabItems = () => {
+    const baseTabs = [
+      { id: 'my-customers', label: 'My Customers', icon: User },
+      { id: 'interactions', label: 'Interactions', icon: MessageSquare },
+    ];
+
+    if (user?.user_type === 'admin') {
+      return [
+        { id: 'customers', label: 'All Customers', icon: Users },
+        ...baseTabs,
+        { id: 'employees', label: 'Employees', icon: Settings },
+        { id: 'reports', label: 'Reports', icon: BarChart3 },
+        { id: 'audit', label: 'Audit Logs', icon: FileText }
+      ];
+    }
+
+    return baseTabs;
+  };
+
+  const tabItems = getTabItems();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -265,6 +279,15 @@ const Dashboard = ({ user, onLogout }) => {
 
             {/* Desktop User Info and Logout */}
             <div className="hidden sm:flex items-center space-x-4">
+              {/* Profile Link */}
+              <a 
+                href="/profile" 
+                className="flex items-center text-gray-600 hover:text-gray-800"
+              >
+                <User className="h-4 w-4 mr-1" />
+                <span className="hidden lg:inline">Profile</span>
+              </a>
+              
               <div className="flex items-center text-sm text-gray-600">
                 <User className="h-4 w-4 mr-2" />
                 <span className="hidden md:inline">{user?.first_name} {user?.last_name}</span>
@@ -307,6 +330,16 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
             </div>
             <div className="py-2">
+              {/* Profile Link in Mobile Menu */}
+              <a 
+                href="/profile"
+                className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <User className="inline h-4 w-4 mr-3" />
+                My Profile
+              </a>
+              
               {tabItems.map((tab) => (
                 <button
                   key={tab.id}
@@ -367,8 +400,8 @@ const Dashboard = ({ user, onLogout }) => {
 
         {/* Content */}
         <div className="bg-white rounded-lg shadow">
-          {/* All Customers Tab */}
-          {activeTab === 'customers' && (
+          {/* All Customers Tab (Admin Only) */}
+          {activeTab === 'customers' && user?.user_type === 'admin' && (
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
                 <h2 className="text-lg font-medium text-gray-900">All Customers</h2>
@@ -399,11 +432,24 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* My Customers Tab */}
+          {/* My Customers Tab (Both Admin and Employee) */}
           {activeTab === 'my-customers' && (
             <div className="p-4 sm:p-6">
-              <div className="mb-4">
-                <h2 className="text-lg font-medium text-gray-900">My Customers</h2>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+                <h2 className="text-lg font-medium text-gray-900">
+                  {user?.user_type === 'admin' ? 'My Assigned Customers' : 'My Customers'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setEditingCustomer(null);
+                    setCustomerForm({ name: '', email: '', phone: '', company: '', title: '' });
+                    setShowCustomerModal(true);
+                  }}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Customer
+                </button>
               </div>
               {loading ? (
                 <div className="flex justify-center items-center py-8">
@@ -415,10 +461,29 @@ const Dashboard = ({ user, onLogout }) => {
                   customers={myCustomers}
                   onAddInteraction={handleAddInteraction}
                   onEditCustomer={handleEditCustomer}
-                  onDeleteCustomer={deleteCustomer}
+                  onAddCustomer={() => {
+                    setEditingCustomer(null);
+                    setCustomerForm({ name: '', email: '', phone: '', company: '', title: '' });
+                    setShowCustomerModal(true);
+                  }}
                 />
               ) : (
-                <p className="text-gray-500 text-center py-8">No customers assigned to you.</p>
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">
+                    {user?.user_type === 'admin' ? 'No customers assigned to you.' : 'No customers assigned to you.'}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setEditingCustomer(null);
+                      setCustomerForm({ name: '', email: '', phone: '', company: '', title: '' });
+                      setShowCustomerModal(true);
+                    }}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center mx-auto"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Your First Customer
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -440,7 +505,7 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Employees Tab */}
+          {/* Employees Tab (Admin Only) */}
           {activeTab === 'employees' && user?.user_type === 'admin' && (
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
@@ -470,7 +535,7 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Reports Tab */}
+          {/* Reports Tab (Admin Only) */}
           {activeTab === 'reports' && user?.user_type === 'admin' && (
             <div className="p-4 sm:p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">Reports</h2>
@@ -478,7 +543,7 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Audit Logs Tab */}
+          {/* Audit Logs Tab (Admin Only) */}
           {activeTab === 'audit' && user?.user_type === 'admin' && (
             <div className="p-4 sm:p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">Audit Logs</h2>
@@ -524,7 +589,7 @@ const Dashboard = ({ user, onLogout }) => {
         interactionForm={interactionForm}
         setInteractionForm={setInteractionForm}
         onSubmit={createInteraction}
-        customers={customers}
+        customers={user?.user_type === 'admin' ? customers : myCustomers}
         loading={loading}
         error={error}
       />

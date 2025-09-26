@@ -1,10 +1,12 @@
 import React from 'react';
-import { Mail, Phone, MessageSquare, Edit3, User, Building2, Clock, Calendar } from 'lucide-react';
+import { Mail, Phone, MessageSquare, Edit3, User, Building2, Clock, Calendar, Plus } from 'lucide-react';
 
 const MyCustomersList = ({
   customers = [],
   onAddInteraction = () => {},
-  onEditCustomer = () => {}
+  onEditCustomer = () => {},
+  onAddCustomer = () => {}, // This prop should be passed from Dashboard
+  onDeleteCustomer = () => {} // Optional: if you want delete functionality
 }) => {
   // Sample data for demonstration
   const sampleCustomers = [
@@ -70,9 +72,21 @@ const MyCustomersList = ({
 
   return (
     <div className="w-full max-w-7xl mx-auto p-4">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">My Customers</h2>
-        <p className="text-gray-600">Customers assigned to you with recent interactions</p>
+      {/* Header Section with Add Customer Button */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">My Customers</h2>
+          <p className="text-gray-600">Customers assigned to you with recent interactions</p>
+        </div>
+        
+        {/* Add Customer Button */}
+        {/* <button
+          onClick={onAddCustomer}
+          className="flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Add Customer
+        </button> */}
       </div>
 
       {/* Mobile-optimized card layout */}
@@ -220,12 +234,19 @@ const MyCustomersList = ({
         ))}
       </div>
 
-      {/* Empty state */}
+      {/* Empty state with enhanced Add Customer button */}
       {displayCustomers.length === 0 && (
         <div className="text-center py-12">
-          <User className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No customers assigned</h3>
-          <p className="text-gray-600">Your assigned customers will appear here when available.</p>
+          <User className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No customers assigned yet</h3>
+          <p className="text-gray-600 mb-6">Get started by adding your first customer</p>
+          <button
+            onClick={onAddCustomer}
+            className="flex items-center justify-center mx-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Your First Customer
+          </button>
         </div>
       )}
     </div>

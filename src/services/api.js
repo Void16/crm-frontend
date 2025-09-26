@@ -53,6 +53,21 @@ export const authAPI = {
     method: 'POST',
     body: JSON.stringify(userData),
   }),
+  
+  // 2FA Methods - Updated to match your URL structure
+  updateProfile: (data) => apiCall('/auth/employees/update_profile/', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }),
+  twoFactorSetup: () => apiCall('/auth/employees/two_factor_setup/'),
+  verify2FA: (token) => apiCall('/auth/employees/two_factor_verify/', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  }),
+  disable2FA: (token) => apiCall('/auth/employees/two_factor_disable/', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  }),
 };
 
 // Customer API calls
