@@ -3,6 +3,7 @@ import {
   Users, MessageSquare, Plus, User, Settings, 
   BarChart3, FileText, LogOut, Building2, Menu, X 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { customerAPI, interactionAPI, adminAPI } from '../services/api';
 import CustomerForm from '../components/customers/CustomerForm';
 import InteractionForm from '../components/interactions/InteractionForm';
@@ -46,6 +47,12 @@ const Dashboard = ({ user, onLogout }) => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const navigate = useNavigate();
+
+  const handleProfileClick = () => {
+    navigate('/profile');
+  };
 
   const fetchData = async () => {
     if (!user) return;
@@ -279,14 +286,14 @@ const Dashboard = ({ user, onLogout }) => {
 
             {/* Desktop User Info and Logout */}
             <div className="hidden sm:flex items-center space-x-4">
-              {/* Profile Link */}
-              <a 
-                href="/profile" 
-                className="flex items-center text-gray-600 hover:text-gray-800"
+              {/* Profile Button - Updated to use React Router */}
+              <button
+                onClick={handleProfileClick}
+                className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-200"
               >
                 <User className="h-4 w-4 mr-1" />
                 <span className="hidden lg:inline">Profile</span>
-              </a>
+              </button>
               
               <div className="flex items-center text-sm text-gray-600">
                 <User className="h-4 w-4 mr-2" />
@@ -298,7 +305,7 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
               <button
                 onClick={onLogout}
-                className="flex items-center text-gray-600 hover:text-gray-800"
+                className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-200"
               >
                 <LogOut className="h-4 w-4 mr-1" />
                 <span className="hidden lg:inline">Logout</span>
@@ -309,7 +316,7 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="sm:hidden">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 text-gray-600 hover:text-gray-800"
+                className="p-2 text-gray-600 hover:text-gray-800 transition-colors duration-200"
               >
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
@@ -330,21 +337,23 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
             </div>
             <div className="py-2">
-              {/* Profile Link in Mobile Menu */}
-              <a 
-                href="/profile"
-                className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
-                onClick={() => setMobileMenuOpen(false)}
+              {/* Profile Button in Mobile Menu - Updated to use React Router */}
+              <button
+                onClick={() => {
+                  handleProfileClick();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
               >
                 <User className="inline h-4 w-4 mr-3" />
                 My Profile
-              </a>
+              </button>
               
               {tabItems.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`w-full text-left px-4 py-3 text-sm ${
+                  className={`w-full text-left px-4 py-3 text-sm flex items-center ${
                     activeTab === tab.id
                       ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
                       : 'text-gray-700 hover:bg-gray-50'
@@ -356,7 +365,7 @@ const Dashboard = ({ user, onLogout }) => {
               ))}
               <button
                 onClick={onLogout}
-                className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-200"
+                className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-200 flex items-center"
               >
                 <LogOut className="inline h-4 w-4 mr-3" />
                 Logout
@@ -384,10 +393,10 @@ const Dashboard = ({ user, onLogout }) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex-shrink-0 ${
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex-shrink-0 transition-colors duration-200 ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 <tab.icon className="inline h-4 w-4 mr-1" />
@@ -407,7 +416,7 @@ const Dashboard = ({ user, onLogout }) => {
                 <h2 className="text-lg font-medium text-gray-900">All Customers</h2>
                 <button
                   onClick={() => setShowCustomerModal(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto transition-colors duration-200"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Customer
@@ -445,7 +454,7 @@ const Dashboard = ({ user, onLogout }) => {
                     setCustomerForm({ name: '', email: '', phone: '', company: '', title: '' });
                     setShowCustomerModal(true);
                   }}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto transition-colors duration-200"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Customer
@@ -478,7 +487,7 @@ const Dashboard = ({ user, onLogout }) => {
                       setCustomerForm({ name: '', email: '', phone: '', company: '', title: '' });
                       setShowCustomerModal(true);
                     }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center mx-auto"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center mx-auto transition-colors duration-200"
                   >
                     <Plus className="h-4 w-4 mr-1" />
                     Add Your First Customer
@@ -512,7 +521,7 @@ const Dashboard = ({ user, onLogout }) => {
                 <h2 className="text-lg font-medium text-gray-900">Employees</h2>
                 <button
                   onClick={() => setShowEmployeeModal(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto transition-colors duration-200"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Add Employee
