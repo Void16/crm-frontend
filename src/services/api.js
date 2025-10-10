@@ -96,6 +96,52 @@ export const interactionAPI = {
   }),
 };
 
+// Project Managers API calls - FIXED: Changed to projectManagersAPI (with 's')
+export const projectManagersAPI = {
+  // Meter Issues
+  getAllMeterIssues: () => apiCall('/project-managers/meter-issues/'),
+  getMyMeterIssues: () => apiCall('/project-managers/meter-issues/my_issues/'),
+  createMeterIssue: (issueData) => apiCall('/project-managers/meter-issues/', {
+    method: 'POST',
+    body: JSON.stringify(issueData),
+  }),
+  updateMeterIssue: (id, issueData) => apiCall(`/project-managers/meter-issues/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(issueData),
+  }),
+  deleteMeterIssue: (id) => apiCall(`/project-managers/meter-issues/${id}/`, {
+    method: 'DELETE',
+  }),
+  
+  // Meter Issue Actions
+  updateIssueStatus: (id, status, notes = '') => apiCall(`/project-managers/meter-issues/${id}/update_status/`, {
+    method: 'POST',
+    body: JSON.stringify({ status, notes }),
+  }),
+  assignTechnician: (id, technicianId, appointmentTime = null, notes = '') => apiCall(`/project-managers/meter-issues/${id}/assign_technician/`, {
+    method: 'POST',
+    body: JSON.stringify({ 
+      technician_id: technicianId, 
+      appointment_time: appointmentTime,
+      notes 
+    }),
+  }),
+
+  // ✅ Fetch all available technicians
+getAvailableTechnicians: () => apiCall('/project-managers/technicians/available/'),
+
+  addCustomerFeedback: (id, feedback, rating = null) => apiCall(`/project-managers/meter-issues/${id}/add_feedback/`, {
+    method: 'POST',
+    body: JSON.stringify({ feedback, rating }),
+  }),
+  
+  // Issue Updates
+  getIssueUpdates: (issueId) => apiCall(`/project-managers/meter-issues/${issueId}/updates/`),
+  
+  // Technician Assignments
+  getTechnicianAssignments: (issueId) => apiCall(`/project-managers/meter-issues/${issueId}/assignments/`),
+};
+
 // Admin API calls
 export const adminAPI = {
   getEmployees: () => apiCall('/auth/employees/'),
@@ -116,4 +162,20 @@ export const adminAPI = {
     return apiCall(`/reports/reports/customer_report/?${queryString}`);
   },
   getEmployeeActivityReport: () => apiCall('/reports/reports/employee_activity_report/'),
+  
+  // Project Managers Admin Dashboard
+  getPerformanceMetrics: (timeRange = '30') => apiCall(`/project-managers/admin-dashboard/performance_metrics/?time_range=${timeRange}`),
+  getCommonIssues: () => apiCall('/project-managers/admin-dashboard/common_issues/'),
+  getAffectedAreas: () => apiCall('/project-managers/admin-dashboard/affected_areas/'),
 };
+
+// Combined API object for easy imports
+export const api = {
+  auth: authAPI,
+  customers: customerAPI,
+  interactions: interactionAPI,
+  projectManagers: projectManagersAPI,  // This now matches the export name
+  admin: adminAPI,
+};
+
+export default api;

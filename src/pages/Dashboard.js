@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, MessageSquare, Plus, User, Settings, 
-  BarChart3, FileText, LogOut, Building2, Menu, X 
+  BarChart3, FileText, LogOut, Building2, Menu, X,
+  AlertTriangle, Wrench, CheckCircle, Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { customerAPI, interactionAPI, adminAPI } from '../services/api';
+import { customerAPI, interactionAPI, adminAPI, projectManagersAPI, api } from '../services/api';
 import CustomerForm from '../components/customers/CustomerForm';
 import InteractionForm from '../components/interactions/InteractionForm';
 import EmployeeForm from '../components/employees/EmployeeForm';
@@ -16,13 +17,39 @@ import Reports from '../components/reports/Reports';
 import AuditLogs from '../components/audit/AuditLogs';
 import Notification from '../components/common/Notification';
 
+// Project Officer Components
+import MeterIssueForm from '../components/project-officer/MeterIssueForm';
+import MeterIssuesList from '../components/project-officer/MeterIssuesList';
+import TechnicianAssignment from '../components/project-officer/TechnicianAssignment';
+import CustomerFeedbackForm from '../components/project-officer/CustomerFeedbackForm';
+
+// Admin Project Management Components
+import AdminMeterIssues from '../components/admin/AdminMeterIssues';
+import PerformanceMetrics from '../components/admin/PerformanceMetrics';
+
 const Dashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState(user?.user_type === 'admin' ? 'customers' : 'my-customers');
+  // Determine default tab based on user role
+  const getDefaultTab = () => {
+    switch(user?.user_type) {
+      case 'admin': return 'customers';
+      case 'project_officer': return 'meter-issues';
+      default: return 'my-customers';
+    }
+  };
+
+  const [activeTab, setActiveTab] = useState(getDefaultTab());
   const [customers, setCustomers] = useState([]);
   const [myCustomers, setMyCustomers] = useState([]);
   const [interactions, setInteractions] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  
+  // Project Officer States
+  const [meterIssues, setMeterIssues] = useState([]);
+  const [assignedIssues, setAssignedIssues] = useState([]);
+  const [technicians, setTechnicians] = useState([]);
+  const [performanceData, setPerformanceData] = useState([]);
+  
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -30,6 +57,9 @@ const Dashboard = ({ user, onLogout }) => {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showInteractionModal, setShowInteractionModal] = useState(false);
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [showMeterIssueModal, setShowMeterIssueModal] = useState(false);
+  const [showTechnicianModal, setShowTechnicianModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   
   // Form states
   const [customerForm, setCustomerForm] = useState({ 
@@ -43,8 +73,20 @@ const Dashboard = ({ user, onLogout }) => {
     email: '', user_type: 'employee' 
   });
   
+  // Meter Issue Form State
+  const [meterIssueForm, setMeterIssueForm] = useState({
+    meter_id: '',
+    customer_name: '',
+    customer_location: '',
+    issue_type: '',
+    severity_level: 'medium',
+    description: '',
+    evidence_image: null
+  });
+  
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedIssue, setSelectedIssue] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -54,37 +96,279 @@ const Dashboard = ({ user, onLogout }) => {
     navigate('/profile');
   };
 
-  const fetchData = async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
-      // Admin can see all customers, employees only see their own
-      if (user.user_type === 'admin') {
-        const customersResult = await customerAPI.getAll();
-        if (customersResult?.ok) setCustomers(customersResult.data);
+ const fetchData = async () => {
+  if (!user) return;
+  
+  setLoading(true);
+  setError(''); // Clear previous errors
+  
+  try {
+    console.log('🔄 Starting data fetch for:', user.user_type);
+
+    // Use Promise.allSettled to handle all API calls independently
+    const promises = [];
+
+    // Always fetch these for all users
+    promises.push(
+      customerAPI.getMyCustomers().then(result => {
+        if (result?.ok) {
+          setMyCustomers(result.data);
+          console.log('✅ My customers loaded');
+        }
+        return result;
+      }).catch(err => {
+        console.warn('⚠️ Failed to fetch my customers:', err);
+        return null;
+      })
+    );
+
+    promises.push(
+      interactionAPI.getAll().then(result => {
+        if (result?.ok) {
+          setInteractions(result.data);
+          console.log('✅ Interactions loaded');
+        }
+        return result;
+      }).catch(err => {
+        console.warn('⚠️ Failed to fetch interactions:', err);
+        return null;
+      })
+    );
+
+    // Admin-specific data
+    if (user.user_type === 'admin') {
+      promises.push(
+        customerAPI.getAll().then(result => {
+          if (result?.ok) {
+            setCustomers(result.data);
+            console.log('✅ All customers loaded');
+          }
+          return result;
+        }).catch(err => {
+          console.warn('⚠️ Failed to fetch all customers:', err);
+          return null;
+        })
+      );
+
+      promises.push(
+        adminAPI.getEmployees().then(result => {
+          if (result?.ok) {
+            setEmployees(result.data);
+            console.log('✅ Employees loaded');
+          }
+          return result;
+        }).catch(err => {
+          console.warn('⚠️ Failed to fetch employees:', err);
+          return null;
+        })
+      );
+
+      promises.push(
+        adminAPI.getAuditLogs().then(result => {
+          if (result?.ok) {
+            setAuditLogs(result.data);
+            console.log('✅ Audit logs loaded');
+          }
+          return result;
+        }).catch(err => {
+          console.warn('⚠️ Failed to fetch audit logs:', err);
+          return null;
+        })
+      );
+
+      // Project management data for admin - handle these separately since they might fail
+      promises.push(
+        projectManagersAPI.getAllMeterIssues().then(result => {
+          if (result?.ok) {
+            setMeterIssues(result.data);
+            console.log('✅ All meter issues loaded');
+          } else {
+            console.warn('⚠️ Failed to fetch all meter issues:', result);
+          }
+          return result;
+        }).catch(err => {
+          console.warn('⚠️ Failed to fetch all meter issues:', err);
+          return null;
+        })
+      );
+
+      promises.push(
+  api.admin.getPerformanceMetrics()
+    .then(result => {
+      if (result?.ok) {
+        console.log('✅ Performance metrics loaded', result.data);
+
+        // Corrected: use performance_data array from backend response
+        setPerformanceData(result.data.performance_data || []);
+
+        // Optional: if you want these later
+        setCommonIssues(result.data.common_issues || []);
+        setAffectedAreas(result.data.affected_areas || []);
+      } else {
+        console.warn('⚠️ Failed to fetch performance metrics:', result);
       }
+      return result;
+    })
+    .catch(err => {
+      console.warn('⚠️ Failed to fetch performance metrics:', err);
+      return null;
+    })
+);
 
-      const myCustomersResult = await customerAPI.getMyCustomers();
-      if (myCustomersResult?.ok) setMyCustomers(myCustomersResult.data);
-
-      const interactionsResult = await interactionAPI.getAll();
-      if (interactionsResult?.ok) setInteractions(interactionsResult.data);
-
-      if (user.user_type === 'admin') {
-        const employeesResult = await adminAPI.getEmployees();
-        if (employeesResult?.ok) setEmployees(employeesResult.data);
-
-        const auditResult = await adminAPI.getAuditLogs();
-        if (auditResult?.ok) setAuditLogs(auditResult.data);
-      }
-    } catch (err) {
-      setError('Failed to fetch data');
-    } finally {
-      setLoading(false);
     }
+
+    // Project officer data
+    if (user.user_type === 'project_officer') {
+      promises.push(
+        projectManagersAPI.getMyMeterIssues().then(result => {
+          if (result?.ok) {
+            setAssignedIssues(result.data);
+            console.log('✅ My issues loaded');
+          } else {
+            console.warn('⚠️ Failed to fetch my issues:', result);
+          }
+          return result;
+        }).catch(err => {
+          console.warn('⚠️ Failed to fetch my issues:', err);
+          return null;
+        })
+      );
+
+      promises.push(
+        projectManagersAPI.getAvailableTechnicians().then(result => {
+          if (result?.ok) {
+            setTechnicians(result.data);
+            console.log('✅ Technicians loaded');
+          } else {
+            console.warn('⚠️ Failed to fetch technicians:', result);
+          }
+          return result;
+        }).catch(err => {
+          console.warn('⚠️ Failed to fetch technicians:', err);
+          return null;
+        })
+      );
+    }
+
+    // Wait for all API calls to complete (success or failure)
+    await Promise.all(promises);
+    console.log('🎉 All data fetch operations completed');
+
+  } catch (err) {
+    // This should only catch critical errors, not individual API failures
+    console.error('💥 Critical error in fetchData:', err);
+    setError('Failed to fetch some data. Please refresh the page.');
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Project Officer Functions
+  const reportMeterIssue = async () => {
+  setLoading(true);
+  setError('');
+  
+  try {
+    console.log('Sending meter issue data:', meterIssueForm);
+    
+    const result = await projectManagersAPI.createMeterIssue(meterIssueForm);
+    
+    console.log('API Response:', result);
+    
+    if (result?.ok) {
+      setSuccess('Meter issue reported successfully!');
+      setShowMeterIssueModal(false);
+      setMeterIssueForm({
+        meter_id: '',
+        customer_name: '',
+        customer_location: '',
+        issue_type: '',
+        severity_level: 'medium',
+        description: '',
+        evidence_image: null // CHANGE THIS TOO
+      });
+      fetchData();
+    } else {
+      const errorMsg = result?.data?.detail || 
+                      result?.data?.message || 
+                      Object.values(result?.data || {}).flat().join(', ') ||
+                      'Failed to report meter issue';
+      setError(errorMsg);
+    }
+  } catch (err) {
+    console.error('Network error:', err);
+    setError('Network error: Failed to connect to server');
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const assignTechnician = async (issueId, technicianId, appointmentTime) => {
+    setLoading(true);
+    setError('');
+    
+    const result = await projectManagersAPI.assignTechnician(issueId, {
+      technician_id: technicianId,
+      appointment_time: appointmentTime
+    });
+    
+    if (result?.ok) {
+      setSuccess('Technician assigned successfully!');
+      setShowTechnicianModal(false);
+      setSelectedIssue(null);
+      fetchData();
+    } else {
+      setError('Failed to assign technician');
+    }
+    
+    setLoading(false);
+  };
+  //to delete admin
+  const updateIssueStatus = async (issueId, status, resolutionNotes = '') => {
+  setLoading(true);
+  setError('');
+  
+  try {
+    const result = await projectManagersAPI.updateIssueStatus(issueId, {
+      status,
+      resolution_notes: resolutionNotes
+    });
+    
+    if (result?.ok) {
+      setSuccess('Issue status updated successfully!');
+      fetchData();
+    } else {
+      setError('Failed to update issue status');
+    }
+  } catch (err) {
+    console.error('Error updating issue status:', err);
+    setError('Failed to update issue status');
+  } finally {
+    setLoading(false);
+  }
+};//up to here 
+  const submitCustomerFeedback = async (issueId, rating, comments = '') => {
+    setLoading(true);
+    setError('');
+    
+    const result = await projectManagersAPI.submitFeedback(issueId, {
+      satisfaction_rating: rating,
+      comments
+    });
+    
+    if (result?.ok) {
+      setSuccess('Feedback submitted successfully!');
+      setShowFeedbackModal(false);
+      setSelectedIssue(null);
+      fetchData();
+    } else {
+      setError('Failed to submit feedback');
+    }
+    
+    setLoading(false);
   };
 
+  // Existing functions (createCustomer, updateCustomer, etc.) remain the same...
   const createCustomer = async () => {
     setLoading(true);
     setError('');
@@ -250,24 +534,35 @@ const Dashboard = ({ user, onLogout }) => {
       { id: 'interactions', label: 'Interactions', icon: MessageSquare },
     ];
 
-    if (user?.user_type === 'admin') {
-      return [
-        { id: 'customers', label: 'All Customers', icon: Users },
-        ...baseTabs,
-        { id: 'employees', label: 'Employees', icon: Settings },
-        { id: 'reports', label: 'Reports', icon: BarChart3 },
-        { id: 'audit', label: 'Audit Logs', icon: FileText }
-      ];
-    }
+    const projectOfficerTabs = [
+      { id: 'meter-issues', label: 'Meter Issues', icon: AlertTriangle },
+      { id: 'assigned-issues', label: 'My Assigned Issues', icon: Wrench },
+    ];
 
-    return baseTabs;
+    const adminTabs = [
+      { id: 'customers', label: 'All Customers', icon: Users },
+      ...baseTabs,
+      { id: 'employees', label: 'Employees', icon: Settings },
+      { id: 'project-management', label: 'Project Management', icon: Building2 },
+      { id: 'reports', label: 'Reports', icon: BarChart3 },
+      { id: 'audit', label: 'Audit Logs', icon: FileText }
+    ];
+
+    switch(user?.user_type) {
+      case 'admin':
+        return adminTabs;
+      case 'project_officer':
+        return projectOfficerTabs;
+      default:
+        return baseTabs;
+    }
   };
 
   const tabItems = getTabItems();
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header - Same as before */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -286,7 +581,6 @@ const Dashboard = ({ user, onLogout }) => {
 
             {/* Desktop User Info and Logout */}
             <div className="hidden sm:flex items-center space-x-4">
-              {/* Profile Button - Updated to use React Router */}
               <button
                 onClick={handleProfileClick}
                 className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-200"
@@ -337,7 +631,6 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
             </div>
             <div className="py-2">
-              {/* Profile Button in Mobile Menu - Updated to use React Router */}
               <button
                 onClick={() => {
                   handleProfileClick();
@@ -544,6 +837,92 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           )}
 
+          {/* Project Management Tab (Admin Only) */}
+          {activeTab === 'project-management' && user?.user_type === 'admin' && (
+            <div className="p-4 sm:p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Project Management</h2>
+              <div className="space-y-6">
+                {/* Performance Metrics */}
+                <PerformanceMetrics 
+                  performanceData={performanceData} 
+                  loading={loading}
+                />
+                
+                {/* All Meter Issues */}
+                <AdminMeterIssues 
+                  meterIssues={meterIssues}
+                  loading={loading}
+                  onRefresh={fetchData}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Meter Issues Tab (Project Officer) */}
+          {activeTab === 'meter-issues' && user?.user_type === 'project_officer' && (
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+                <h2 className="text-lg font-medium text-gray-900">Meter Issues</h2>
+                <button
+                  onClick={() => setShowMeterIssueModal(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto transition-colors duration-200"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Report Issue
+                </button>
+              </div>
+              {loading ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-sm sm:text-base">Loading meter issues...</span>
+                </div>
+              ) : assignedIssues.length > 0 ? (
+                <MeterIssuesList
+                  issues={assignedIssues}
+                  onUpdateStatus={updateIssueStatus}
+                  onAssignTechnician={(issue) => {
+                    setSelectedIssue(issue);
+                    setShowTechnicianModal(true);
+                  }}
+                  onSubmitFeedback={(issue) => {
+                    setSelectedIssue(issue);
+                    setShowFeedbackModal(true);
+                  }}
+                />
+              ) : (
+                <p className="text-gray-500 text-center py-8">No meter issues found.</p>
+              )}
+            </div>
+          )}
+
+          {/* Assigned Issues Tab (Project Officer) */}
+          {activeTab === 'assigned-issues' && user?.user_type === 'project_officer' && (
+            <div className="p-4 sm:p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">My Assigned Issues</h2>
+              {loading ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-sm sm:text-base">Loading assigned issues...</span>
+                </div>
+              ) : assignedIssues.length > 0 ? (
+                <MeterIssuesList
+                  issues={assignedIssues}
+                  onUpdateStatus={updateIssueStatus}
+                  onAssignTechnician={(issue) => {
+                    setSelectedIssue(issue);
+                    setShowTechnicianModal(true);
+                  }}
+                  onSubmitFeedback={(issue) => {
+                    setSelectedIssue(issue);
+                    setShowFeedbackModal(true);
+                  }}
+                />
+              ) : (
+                <p className="text-gray-500 text-center py-8">No assigned issues found.</p>
+              )}
+            </div>
+          )}
+
           {/* Reports Tab (Admin Only) */}
           {activeTab === 'reports' && user?.user_type === 'admin' && (
             <div className="p-4 sm:p-6">
@@ -616,6 +995,56 @@ const Dashboard = ({ user, onLogout }) => {
         employeeForm={employeeForm}
         setEmployeeForm={setEmployeeForm}
         onSubmit={createEmployee}
+        loading={loading}
+        error={error}
+      />
+
+      {/* Project Officer Modals */}
+      <MeterIssueForm
+        show={showMeterIssueModal}
+        onClose={() => {
+          setShowMeterIssueModal(false);
+          setMeterIssueForm({
+            meter_id: '',
+            customer_name: '',
+            customer_location: '',
+            issue_type: '',
+            severity_level: 'medium',
+            description: '',
+            evidence_image: null
+          });
+          setError('');
+        }}
+        meterIssueForm={meterIssueForm}
+        setMeterIssueForm={setMeterIssueForm}
+        onSubmit={reportMeterIssue}
+        loading={loading}
+        error={error}
+      />
+
+      <TechnicianAssignment
+        show={showTechnicianModal}
+        onClose={() => {
+          setShowTechnicianModal(false);
+          setSelectedIssue(null);
+          setError('');
+        }}
+        issue={selectedIssue}
+        technicians={technicians}
+        onAssign={assignTechnician}
+        loading={loading}
+        error={error}
+      />
+
+      <CustomerFeedbackForm
+        show={showFeedbackModal}
+        onClose={() => {
+          setShowFeedbackModal(false);
+          setSelectedIssue(null);
+          setError('');
+        }}
+        issue={selectedIssue}
+        onSubmit={submitCustomerFeedback}
         loading={loading}
         error={error}
       />
