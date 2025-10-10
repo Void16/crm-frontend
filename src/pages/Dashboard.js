@@ -202,8 +202,8 @@ const Dashboard = ({ user, onLogout }) => {
         setPerformanceData(result.data.performance_data || []);
 
         // Optional: if you want these later
-        setCommonIssues(result.data.common_issues || []);
-        setAffectedAreas(result.data.affected_areas || []);
+        //setCommonIssues(result.data.common_issues || []);
+        //setAffectedAreas(result.data.affected_areas || []);
       } else {
         console.warn('⚠️ Failed to fetch performance metrics:', result);
       }
