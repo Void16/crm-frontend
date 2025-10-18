@@ -11,7 +11,24 @@ const CustomerFeedbackForm = ({ show, onClose, issue, onSubmit, loading, error }
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(issue.id, formData.rating, formData.comments);
+    
+    // FIX: Pass data as a single object
+    const feedbackData = {
+      rating: formData.rating,
+      comments: formData.comments
+    };
+    
+    console.log('📝 Form submitting:', feedbackData);
+    onSubmit(feedbackData); // Only pass the data object
+  };
+
+  const handleClose = () => {
+    // Reset form when closing
+    setFormData({
+      rating: 5,
+      comments: ''
+    });
+    onClose();
   };
 
   return (
@@ -68,6 +85,7 @@ const CustomerFeedbackForm = ({ show, onClose, issue, onSubmit, loading, error }
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows="4"
                 placeholder="Enter customer feedback comments..."
+                required
               />
             </div>
           </div>
@@ -75,7 +93,7 @@ const CustomerFeedbackForm = ({ show, onClose, issue, onSubmit, loading, error }
           <div className="flex justify-end space-x-3 mt-6">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               disabled={loading}
             >
@@ -83,7 +101,7 @@ const CustomerFeedbackForm = ({ show, onClose, issue, onSubmit, loading, error }
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !formData.comments.trim()}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? 'Submitting...' : 'Submit Feedback'}

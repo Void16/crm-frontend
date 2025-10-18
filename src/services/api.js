@@ -99,6 +99,8 @@ export const interactionAPI = {
 // Project Managers API calls - FIXED: Changed to projectManagersAPI (with 's')
 export const projectManagersAPI = {
   // Meter Issues
+  // In your projectManagersAPI object
+  getAllInteractions: () => apiCall('/project-managers/interactions/'),
   getAllMeterIssues: () => apiCall('/project-managers/meter-issues/'),
   getMyMeterIssues: () => apiCall('/project-managers/meter-issues/my_issues/'),
   createMeterIssue: (issueData) => apiCall('/project-managers/meter-issues/', {
@@ -127,8 +129,8 @@ export const projectManagersAPI = {
     }),
   }),
 
-  // ✅ Fetch all available technicians
-getAvailableTechnicians: () => apiCall('/project-managers/technicians/available/'),
+  // Fetch all available technicians
+  getAvailableTechnicians: () => apiCall('/project-managers/technicians/available/'),
 
   addCustomerFeedback: (id, feedback, rating = null) => apiCall(`/project-managers/meter-issues/${id}/add_feedback/`, {
     method: 'POST',
@@ -140,6 +142,24 @@ getAvailableTechnicians: () => apiCall('/project-managers/technicians/available/
   
   // Technician Assignments
   getTechnicianAssignments: (issueId) => apiCall(`/project-managers/meter-issues/${issueId}/assignments/`),
+  
+  // Customer Feedback
+  getCustomerFeedbacks: () => apiCall('/project-managers/customer-feedbacks/'),
+  
+  // Project Officer Interactions
+  recordInteraction: (interactionData) => apiCall('/project-managers/interactions/', {
+    method: 'POST',
+    body: JSON.stringify(interactionData),
+  }),
+  getMyInteractions: () => apiCall('/project-managers/interactions/my_interactions/'),
+  getAllInteractions: () => apiCall('/project-managers/interactions/'), // For admin view
+  updateInteraction: (id, interactionData) => apiCall(`/project-managers/interactions/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(interactionData),
+  }),
+  deleteInteraction: (id) => apiCall(`/project-managers/interactions/${id}/`, {
+    method: 'DELETE',
+  }),
 };
 
 // Admin API calls
@@ -167,6 +187,10 @@ export const adminAPI = {
   getPerformanceMetrics: (timeRange = '30') => apiCall(`/project-managers/admin-dashboard/performance_metrics/?time_range=${timeRange}`),
   getCommonIssues: () => apiCall('/project-managers/admin-dashboard/common_issues/'),
   getAffectedAreas: () => apiCall('/project-managers/admin-dashboard/affected_areas/'),
+  
+  // Project Officer Interactions (Admin view)
+  getAllProjectOfficerInteractions: () => apiCall('/project-managers/interactions/'),
+  getProjectOfficerInteractionStats: (timeRange = '30') => apiCall(`/project-managers/admin-dashboard/interaction_stats/?time_range=${timeRange}`),
 };
 
 // Combined API object for easy imports
@@ -174,7 +198,7 @@ export const api = {
   auth: authAPI,
   customers: customerAPI,
   interactions: interactionAPI,
-  projectManagers: projectManagersAPI,  // This now matches the export name
+  projectManagers: projectManagersAPI,
   admin: adminAPI,
 };
 

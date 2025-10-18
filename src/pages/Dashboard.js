@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, MessageSquare, Plus, User, Settings, 
   BarChart3, FileText, LogOut, Building2, Menu, X,
-  AlertTriangle, Wrench, CheckCircle, Clock
+  AlertTriangle, Wrench, CheckCircle, Clock, MessageCircle,
+  MapPin// Add this import
 } from 'lucide-react';
+import { Refresh } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { customerAPI, interactionAPI, adminAPI, projectManagersAPI, api } from '../services/api';
 import CustomerForm from '../components/customers/CustomerForm';
@@ -22,6 +24,10 @@ import MeterIssueForm from '../components/project-officer/MeterIssueForm';
 import MeterIssuesList from '../components/project-officer/MeterIssuesList';
 import TechnicianAssignment from '../components/project-officer/TechnicianAssignment';
 import CustomerFeedbackForm from '../components/project-officer/CustomerFeedbackForm';
+import CustomerFeedbackList from '../components/project-officer/CustomerFeedbackList';
+import ProjectOfficerInteractionForm from '../components/project-officer/ProjectOfficerInteractionForm'; // Add this import
+import ProjectOfficerInteractionsList from '../components/project-officer/ProjectOfficerInteractionsList'; // Add this import
+import AdminInteractionsList from '../components/admin/AdminInteractionsList';
 
 // Admin Project Management Components
 import AdminMeterIssues from '../components/admin/AdminMeterIssues';
@@ -49,7 +55,10 @@ const Dashboard = ({ user, onLogout }) => {
   const [assignedIssues, setAssignedIssues] = useState([]);
   const [technicians, setTechnicians] = useState([]);
   const [performanceData, setPerformanceData] = useState([]);
-  
+  const [customerFeedbacks, setCustomerFeedbacks] = useState([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [projectOfficerInteractions, setProjectOfficerInteractions] = useState([]); // Add this state
+  const [adminInteractions, setAdminInteractions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -60,6 +69,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [showMeterIssueModal, setShowMeterIssueModal] = useState(false);
   const [showTechnicianModal, setShowTechnicianModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showProjectOfficerInteractionModal, setShowProjectOfficerInteractionModal] = useState(false); // Add this state
   
   // Form states
   const [customerForm, setCustomerForm] = useState({ 
@@ -96,210 +106,340 @@ const Dashboard = ({ user, onLogout }) => {
     navigate('/profile');
   };
 
- const fetchData = async () => {
-  if (!user) return;
-  
-  setLoading(true);
-  setError(''); // Clear previous errors
-  
-  try {
-    console.log('🔄 Starting data fetch for:', user.user_type);
-
-    // Use Promise.allSettled to handle all API calls independently
-    const promises = [];
-
-    // Always fetch these for all users
-    promises.push(
-      customerAPI.getMyCustomers().then(result => {
-        if (result?.ok) {
-          setMyCustomers(result.data);
-          console.log('✅ My customers loaded');
-        }
-        return result;
-      }).catch(err => {
-        console.warn('⚠️ Failed to fetch my customers:', err);
-        return null;
-      })
-    );
-
-    promises.push(
-      interactionAPI.getAll().then(result => {
-        if (result?.ok) {
-          setInteractions(result.data);
-          console.log('✅ Interactions loaded');
-        }
-        return result;
-      }).catch(err => {
-        console.warn('⚠️ Failed to fetch interactions:', err);
-        return null;
-      })
-    );
-
-    // Admin-specific data
-    if (user.user_type === 'admin') {
-      promises.push(
-        customerAPI.getAll().then(result => {
-          if (result?.ok) {
-            setCustomers(result.data);
-            console.log('✅ All customers loaded');
-          }
-          return result;
-        }).catch(err => {
-          console.warn('⚠️ Failed to fetch all customers:', err);
-          return null;
-        })
-      );
-
-      promises.push(
-        adminAPI.getEmployees().then(result => {
-          if (result?.ok) {
-            setEmployees(result.data);
-            console.log('✅ Employees loaded');
-          }
-          return result;
-        }).catch(err => {
-          console.warn('⚠️ Failed to fetch employees:', err);
-          return null;
-        })
-      );
-
-      promises.push(
-        adminAPI.getAuditLogs().then(result => {
-          if (result?.ok) {
-            setAuditLogs(result.data);
-            console.log('✅ Audit logs loaded');
-          }
-          return result;
-        }).catch(err => {
-          console.warn('⚠️ Failed to fetch audit logs:', err);
-          return null;
-        })
-      );
-
-      // Project management data for admin - handle these separately since they might fail
-      promises.push(
-        projectManagersAPI.getAllMeterIssues().then(result => {
-          if (result?.ok) {
-            setMeterIssues(result.data);
-            console.log('✅ All meter issues loaded');
-          } else {
-            console.warn('⚠️ Failed to fetch all meter issues:', result);
-          }
-          return result;
-        }).catch(err => {
-          console.warn('⚠️ Failed to fetch all meter issues:', err);
-          return null;
-        })
-      );
-
-      promises.push(
-  api.admin.getPerformanceMetrics()
-    .then(result => {
+  const fetchCustomerFeedbacks = async () => {
+    setFeedbackLoading(true);
+    try {
+      console.log('🔄 Fetching customer feedbacks...');
+      const result = await projectManagersAPI.getCustomerFeedbacks();
+      console.log('📨 Customer feedbacks response:', result);
+      
       if (result?.ok) {
-        console.log('✅ Performance metrics loaded', result.data);
-
-        // Corrected: use performance_data array from backend response
-        setPerformanceData(result.data.performance_data || []);
-
-        // Optional: if you want these later
-        //setCommonIssues(result.data.common_issues || []);
-        //setAffectedAreas(result.data.affected_areas || []);
+        setCustomerFeedbacks(result.data);
+        console.log(`✅ Loaded ${result.data.length} feedback items`);
       } else {
-        console.warn('⚠️ Failed to fetch performance metrics:', result);
+        console.error('❌ Failed to fetch feedbacks:', result);
       }
-      return result;
-    })
-    .catch(err => {
-      console.warn('⚠️ Failed to fetch performance metrics:', err);
-      return null;
-    })
-);
-
+    } catch (error) {
+      console.error('💥 Error fetching feedbacks:', error);
+    } finally {
+      setFeedbackLoading(false);
     }
+  };
 
-    // Project officer data
-    if (user.user_type === 'project_officer') {
+  // Add this function for project officer interactions
+  const fetchProjectOfficerInteractions = async () => {
+    try {
+      console.log('🔄 Fetching project officer interactions...');
+      const result = await projectManagersAPI.getMyInteractions();
+      console.log('📨 Project officer interactions response:', result);
+      
+      if (result?.ok) {
+        setProjectOfficerInteractions(result.data);
+        console.log(`✅ Loaded ${result.data.length} interaction items`);
+      } else {
+        console.error('❌ Failed to fetch project officer interactions:', result);
+      }
+    } catch (error) {
+      console.error('💥 Error fetching project officer interactions:', error);
+    }
+  };
+
+  // Add this function to handle interaction submission
+  const recordProjectOfficerInteraction = async (interactionData) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      console.log('🔄 Recording project officer interaction:', interactionData);
+      
+      const result = await projectManagersAPI.recordInteraction(interactionData);
+      
+      console.log('📡 Interaction API Response:', result);
+      
+      if (result?.ok) {
+        setSuccess('Interaction recorded successfully!');
+        setShowProjectOfficerInteractionModal(false);
+        fetchData(); // Refresh to show the new interaction
+      } else {
+        console.error('❌ Failed to record interaction:', result);
+        setError('Failed to record interaction');
+      }
+    } catch (err) {
+      console.error('💥 Error recording interaction:', err);
+      setError('Network error: Failed to record interaction');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchData = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    setError(''); // Clear previous errors
+    
+    try {
+      console.log('🔄 Starting data fetch for:', user.user_type);
+
+      // Use Promise.allSettled to handle all API calls independently
+      const promises = [];
+
+      // Always fetch these for all users
       promises.push(
-        projectManagersAPI.getMyMeterIssues().then(result => {
+        customerAPI.getMyCustomers().then(result => {
           if (result?.ok) {
-            setAssignedIssues(result.data);
-            console.log('✅ My issues loaded');
-          } else {
-            console.warn('⚠️ Failed to fetch my issues:', result);
+            setMyCustomers(result.data);
+            console.log('✅ My customers loaded');
           }
           return result;
         }).catch(err => {
-          console.warn('⚠️ Failed to fetch my issues:', err);
+          console.warn('⚠️ Failed to fetch my customers:', err);
           return null;
         })
       );
 
       promises.push(
-        projectManagersAPI.getAvailableTechnicians().then(result => {
+        interactionAPI.getAll().then(result => {
           if (result?.ok) {
-            setTechnicians(result.data);
-            console.log('✅ Technicians loaded');
-          } else {
-            console.warn('⚠️ Failed to fetch technicians:', result);
+            setInteractions(result.data);
+            console.log('✅ Interactions loaded');
           }
           return result;
         }).catch(err => {
-          console.warn('⚠️ Failed to fetch technicians:', err);
+          console.warn('⚠️ Failed to fetch interactions:', err);
           return null;
         })
       );
+
+      // Admin-specific data
+      if (user.user_type === 'admin') {
+        promises.push(
+          customerAPI.getAll().then(result => {
+            if (result?.ok) {
+              setCustomers(result.data);
+              console.log('✅ All customers loaded');
+            }
+            return result;
+          }).catch(err => {
+            console.warn('⚠️ Failed to fetch all customers:', err);
+            return null;
+          })
+        );
+         
+        promises.push(
+          adminAPI.getEmployees().then(result => {
+            if (result?.ok) {
+              setEmployees(result.data);
+              console.log('✅ Employees loaded');
+            }
+            return result;
+          }).catch(err => {
+            console.warn('⚠️ Failed to fetch employees:', err);
+            return null;
+          })
+        );
+
+        promises.push(
+          adminAPI.getAuditLogs().then(result => {
+            if (result?.ok) {
+              setAuditLogs(result.data);
+              console.log('✅ Audit logs loaded');
+            }
+            return result;
+          }).catch(err => {
+            console.warn('⚠️ Failed to fetch audit logs:', err);
+            return null;
+          })
+        );
+
+        // Project management data for admin
+        promises.push(
+          projectManagersAPI.getAllMeterIssues().then(result => {
+            if (result?.ok) {
+              setMeterIssues(result.data);
+              console.log('✅ All meter issues loaded');
+            } else {
+              console.warn('⚠️ Failed to fetch all meter issues:', result);
+            }
+            return result;
+          }).catch(err => {
+            console.warn('⚠️ Failed to fetch all meter issues:', err);
+            return null;
+          })
+        );
+
+        promises.push(
+          api.admin.getPerformanceMetrics()
+            .then(result => {
+              if (result?.ok) {
+                console.log('✅ Performance metrics API response:', result);
+                console.log('📊 Full result.data:', result.data);
+                console.log('🔍 performance_data array:', result.data.performance_data);
+                
+                if (result.data.performance_data) {
+                  console.log('👥 Performance data items:', result.data.performance_data.length);
+                  result.data.performance_data.forEach((officer, index) => {
+                    console.log(`   Officer ${index}:`, officer);
+                  });
+                } else {
+                  console.warn('❌ performance_data is null or undefined');
+                }
+
+                setPerformanceData(result.data.performance_data || []);
+                console.log('🎯 Setting performanceData to:', result.data.performance_data || []);
+
+              } else {
+                console.warn('⚠️ Failed to fetch performance metrics - Response not OK:', result);
+              }
+              return result;
+            })
+            .catch(err => {
+              console.warn('⚠️ Failed to fetch performance metrics - Error:', err);
+              return null;
+            })
+        );
+
+        promises.push(
+          projectManagersAPI.getAvailableTechnicians().then(result => {
+            if (result?.ok) {
+              setTechnicians(result.data);
+              console.log('✅ Technicians loaded');
+            } else {
+              console.warn('⚠️ Failed to fetch technicians:', result);
+            }
+            return result;
+          }).catch(err => {
+            console.warn('⚠️ Failed to fetch technicians:', err);
+            return null;
+          })
+        );
+
+        promises.push(
+        fetchAdminInteractions().catch(err => {
+          console.warn('⚠️ Failed to fetch admin interactions:', err);
+          return null;
+        })
+      );
+      }
+
+      // Project officer data
+      if (user.user_type === 'project_officer') {
+        promises.push(
+          projectManagersAPI.getMyMeterIssues().then(result => {
+            if (result?.ok) {
+              setAssignedIssues(result.data);
+              console.log('✅ My issues loaded');
+            } else {
+              console.warn('⚠️ Failed to fetch my issues:', result);
+            }
+            return result;
+          }).catch(err => {
+            console.warn('⚠️ Failed to fetch my issues:', err);
+            return null;
+          })
+        );
+
+        promises.push(
+          projectManagersAPI.getAvailableTechnicians().then(result => {
+            if (result?.ok) {
+              setTechnicians(result.data);
+              console.log('✅ Technicians loaded');
+            } else {
+              console.warn('⚠️ Failed to fetch technicians:', result);
+            }
+            return result;
+          }).catch(err => {
+            console.warn('⚠️ Failed to fetch technicians:', err);
+            return null;
+          })
+        );
+
+        // Add project officer interactions fetch
+        promises.push(
+          fetchProjectOfficerInteractions().catch(err => {
+            console.warn('⚠️ Failed to fetch project officer interactions:', err);
+            return null;
+          })
+        );
+      }
+
+      // Add feedback fetch for admin and project officers
+      if (user.user_type === 'admin' || user.user_type === 'project_officer') {
+        promises.push(
+          fetchCustomerFeedbacks().catch(err => {
+            console.warn('⚠️ Failed to fetch feedbacks:', err);
+            return null;
+          })
+        );
+      }
+
+      // Wait for all API calls to complete (success or failure)
+      await Promise.all(promises);
+      console.log('🎉 All data fetch operations completed');
+
+    } catch (err) {
+      // This should only catch critical errors, not individual API failures
+      console.error('💥 Critical error in fetchData:', err);
+      setError('Failed to fetch some data. Please refresh the page.');
+    } finally {
+      setLoading(false);
     }
-
-    // Wait for all API calls to complete (success or failure)
-    await Promise.all(promises);
-    console.log('🎉 All data fetch operations completed');
-
-  } catch (err) {
-    // This should only catch critical errors, not individual API failures
-    console.error('💥 Critical error in fetchData:', err);
-    setError('Failed to fetch some data. Please refresh the page.');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Project Officer Functions
   const reportMeterIssue = async () => {
-  setLoading(true);
-  setError('');
-  
+    setLoading(true);
+    setError('');
+    
+    try {
+      console.log('Sending meter issue data:', meterIssueForm);
+      
+      const result = await projectManagersAPI.createMeterIssue(meterIssueForm);
+      
+      console.log('API Response:', result);
+      
+      if (result?.ok) {
+        setSuccess('Meter issue reported successfully!');
+        setShowMeterIssueModal(false);
+        setMeterIssueForm({
+          meter_id: '',
+          customer_name: '',
+          customer_location: '',
+          issue_type: '',
+          severity_level: 'medium',
+          description: '',
+          evidence_image: null
+        });
+        fetchData();
+      } else {
+        const errorMsg = result?.data?.detail || 
+                        result?.data?.message || 
+                        Object.values(result?.data || {}).flat().join(', ') ||
+                        'Failed to report meter issue';
+        setError(errorMsg);
+      }
+    } catch (err) {
+      console.error('Network error:', err);
+      setError('Network error: Failed to connect to server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAdminInteractions = async () => {
   try {
-    console.log('Sending meter issue data:', meterIssueForm);
-    
-    const result = await projectManagersAPI.createMeterIssue(meterIssueForm);
-    
-    console.log('API Response:', result);
+    console.log('🔄 Fetching admin interactions...');
+    const result = await projectManagersAPI.getAllInteractions();
+    console.log('📨 Admin interactions response:', result);
     
     if (result?.ok) {
-      setSuccess('Meter issue reported successfully!');
-      setShowMeterIssueModal(false);
-      setMeterIssueForm({
-        meter_id: '',
-        customer_name: '',
-        customer_location: '',
-        issue_type: '',
-        severity_level: 'medium',
-        description: '',
-        evidence_image: null // CHANGE THIS TOO
-      });
-      fetchData();
+      setAdminInteractions(result.data);
+      console.log(`✅ Loaded ${result.data.length} admin interaction items`);
     } else {
-      const errorMsg = result?.data?.detail || 
-                      result?.data?.message || 
-                      Object.values(result?.data || {}).flat().join(', ') ||
-                      'Failed to report meter issue';
-      setError(errorMsg);
+      console.error('❌ Failed to fetch admin interactions:', result);
     }
-  } catch (err) {
-    console.error('Network error:', err);
-    setError('Network error: Failed to connect to server');
-  } finally {
-    setLoading(false);
+  } catch (error) {
+    console.error('💥 Error fetching admin interactions:', error);
   }
 };
 
@@ -323,49 +463,87 @@ const Dashboard = ({ user, onLogout }) => {
     
     setLoading(false);
   };
-  //to delete admin
+
   const updateIssueStatus = async (issueId, status, resolutionNotes = '') => {
-  setLoading(true);
-  setError('');
-  
-  try {
-    const result = await projectManagersAPI.updateIssueStatus(issueId, {
-      status,
-      resolution_notes: resolutionNotes
-    });
-    
-    if (result?.ok) {
-      setSuccess('Issue status updated successfully!');
-      fetchData();
-    } else {
-      setError('Failed to update issue status');
-    }
-  } catch (err) {
-    console.error('Error updating issue status:', err);
-    setError('Failed to update issue status');
-  } finally {
-    setLoading(false);
-  }
-};//up to here 
-  const submitCustomerFeedback = async (issueId, rating, comments = '') => {
     setLoading(true);
     setError('');
     
-    const result = await projectManagersAPI.submitFeedback(issueId, {
-      satisfaction_rating: rating,
-      comments
-    });
-    
-    if (result?.ok) {
-      setSuccess('Feedback submitted successfully!');
-      setShowFeedbackModal(false);
-      setSelectedIssue(null);
-      fetchData();
-    } else {
-      setError('Failed to submit feedback');
+    try {
+      console.log('🔄 Updating issue status:', { issueId, status, resolutionNotes });
+      
+      const result = await projectManagersAPI.updateIssueStatus(issueId, status, resolutionNotes);
+      
+      console.log('📡 API Response:', result);
+      
+      if (result?.ok) {
+        setSuccess(`Issue status updated to ${status.replace('_', ' ')} successfully!`);
+        fetchData();
+      } else {
+        console.error('❌ Failed to update issue status:', result);
+        
+        let errorMessage = 'Failed to update issue status';
+        if (result?.data) {
+          if (result.data.detail) {
+            errorMessage = result.data.detail;
+          } else if (result.data.message) {
+            errorMessage = result.data.message;
+          } else if (typeof result.data === 'string') {
+            errorMessage = result.data;
+          } else if (result.data.status) {
+            errorMessage = result.data.status.join(', ');
+          }
+        }
+        setError(errorMessage);
+      }
+    } catch (err) {
+      console.error('💥 Unexpected error in updateIssueStatus:', err);
+      setError('Network error: Failed to update issue status');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const submitCustomerFeedback = async (issueId, feedbackData) => {
+    setLoading(true);
+    setError('');
     
-    setLoading(false);
+    try {
+      console.log('🔄 Submitting customer feedback:', { issueId, feedbackData });
+      
+      const { rating, comments = '' } = feedbackData;
+      
+      const result = await projectManagersAPI.addCustomerFeedback(issueId, comments, rating);
+      
+      console.log('📡 Feedback API Response:', result);
+      
+      if (result?.ok) {
+        setSuccess('Feedback submitted successfully!');
+        setShowFeedbackModal(false);
+        setSelectedIssue(null);
+        fetchData();
+      } else {
+        console.error('❌ Failed to submit feedback:', result);
+        
+        let errorMessage = 'Failed to submit feedback';
+        if (result?.data) {
+          if (result.data.detail) {
+            errorMessage = result.data.detail;
+          } else if (result.data.message) {
+            errorMessage = result.data.message;
+          } else if (typeof result.data === 'string') {
+            errorMessage = result.data;
+          } else if (result.data.feedback) {
+            errorMessage = result.data.feedback.join(', ');
+          }
+        }
+        setError(errorMessage);
+      }
+    } catch (err) {
+      console.error('💥 Unexpected error in submitCustomerFeedback:', err);
+      setError('Network error: Failed to submit feedback');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Existing functions (createCustomer, updateCustomer, etc.) remain the same...
@@ -537,6 +715,8 @@ const Dashboard = ({ user, onLogout }) => {
     const projectOfficerTabs = [
       { id: 'meter-issues', label: 'Meter Issues', icon: AlertTriangle },
       { id: 'assigned-issues', label: 'My Assigned Issues', icon: Wrench },
+      { id: 'field-interactions', label: 'Field Interactions', icon: MapPin }, // Add this tab
+      { id: 'customer-feedback', label: 'Customer Feedback', icon: MessageCircle },
     ];
 
     const adminTabs = [
@@ -544,6 +724,8 @@ const Dashboard = ({ user, onLogout }) => {
       ...baseTabs,
       { id: 'employees', label: 'Employees', icon: Settings },
       { id: 'project-management', label: 'Project Management', icon: Building2 },
+      { id: 'field-interactions', label: 'Field Interactions', icon: MapPin },
+      { id: 'customer-feedback', label: 'Customer Feedback', icon: MessageCircle },
       { id: 'reports', label: 'Reports', icon: BarChart3 },
       { id: 'audit', label: 'Audit Logs', icon: FileText }
     ];
@@ -863,13 +1045,22 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
                 <h2 className="text-lg font-medium text-gray-900">Meter Issues</h2>
-                <button
-                  onClick={() => setShowMeterIssueModal(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto transition-colors duration-200"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Report Issue
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setShowMeterIssueModal(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors duration-200"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Report Issue
+                  </button>
+                  <button
+                    onClick={() => setShowProjectOfficerInteractionModal(true)}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center transition-colors duration-200"
+                  >
+                    <MapPin className="h-4 w-4 mr-1" />
+                    Record Interaction
+                  </button>
+                </div>
               </div>
               {loading ? (
                 <div className="flex justify-center items-center py-8">
@@ -923,6 +1114,47 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           )}
 
+          {/* Field Interactions Tab (Project Officer) */}
+          {activeTab === 'field-interactions' && user?.user_type === 'project_officer' && (
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+                <h2 className="text-lg font-medium text-gray-900">Field Interactions</h2>
+                <button
+                  onClick={() => setShowProjectOfficerInteractionModal(true)}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center transition-colors duration-200"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Record Interaction
+                </button>
+              </div>
+              {loading ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-sm sm:text-base">Loading interactions...</span>
+                </div>
+              ) : projectOfficerInteractions.length > 0 ? (
+                <ProjectOfficerInteractionsList 
+                  interactions={projectOfficerInteractions}
+                />
+              ) : (
+                <div className="text-center py-8">
+                  <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500">No field interactions recorded yet</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Start recording your field visits and customer interactions
+                  </p>
+                  <button
+                    onClick={() => setShowProjectOfficerInteractionModal(true)}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center mx-auto mt-4 transition-colors duration-200"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Record Your First Interaction
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Reports Tab (Admin Only) */}
           {activeTab === 'reports' && user?.user_type === 'admin' && (
             <div className="p-4 sm:p-6">
@@ -945,6 +1177,56 @@ const Dashboard = ({ user, onLogout }) => {
               ) : (
                 <p className="text-gray-500 text-center py-8">No audit logs found.</p>
               )}
+            </div>
+          )}
+          {/* Field Interactions Tab (Admin) */}
+          {activeTab === 'field-interactions' && user?.user_type === 'admin' && (
+            <div className="p-4 sm:p-6">
+              <AdminInteractionsList 
+                interactions={adminInteractions}
+                loading={loading}
+                onRefresh={fetchData}
+              />
+            </div>
+          )}
+          {/* Customer Feedback Tab (Admin & Project Officers) */}
+          {(activeTab === 'customer-feedback' && (user?.user_type === 'admin' || user?.user_type === 'project_officer')) && (
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900">Customer Feedback</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {customerFeedbacks.length} feedback{customerFeedbacks.length !== 1 ? 's' : ''} received
+                  </p>
+                </div>
+                
+                {/* Feedback Stats */}
+                <div className="flex gap-4 text-sm">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {customerFeedbacks.filter(f => f.customer_rating >= 4).length}
+                    </div>
+                    <div className="text-gray-600">Positive</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-600">
+                      {customerFeedbacks.filter(f => f.customer_rating === 3).length}
+                    </div>
+                    <div className="text-gray-600">Neutral</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {customerFeedbacks.filter(f => f.customer_rating <= 2).length}
+                    </div>
+                    <div className="text-gray-600">Needs Improvement</div>
+                  </div>
+                </div>
+              </div>
+
+              <CustomerFeedbackList 
+                feedbacks={customerFeedbacks}
+                loading={feedbackLoading}
+              />
             </div>
           )}
         </div>
@@ -1044,9 +1326,25 @@ const Dashboard = ({ user, onLogout }) => {
           setError('');
         }}
         issue={selectedIssue}
-        onSubmit={submitCustomerFeedback}
+        onSubmit={(feedbackData) => {
+          console.log('📝 Dashboard received feedback:', feedbackData);
+          submitCustomerFeedback(selectedIssue.id, feedbackData);
+        }}
         loading={loading}
         error={error}
+      />
+
+      {/* Project Officer Interaction Modal */}
+      <ProjectOfficerInteractionForm
+        show={showProjectOfficerInteractionModal}
+        onClose={() => {
+          setShowProjectOfficerInteractionModal(false);
+          setError('');
+        }}
+        onSubmit={recordProjectOfficerInteraction}
+        loading={loading}
+        error={error}
+        assignedArea={user?.assigned_area || "General Area"} // Make sure your user model has this field
       />
     </div>
   );
