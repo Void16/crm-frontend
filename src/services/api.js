@@ -20,7 +20,7 @@ export const apiCall = async (endpoint, options = {}) => {
     if (response.status === 401) {
       localStorage.removeItem('token');
       window.location.reload();
-      return null;
+      return { data: { detail: 'Authentication required' }, status: 401, ok: false };
     }
 
     // Handle 204 No Content responses
@@ -34,9 +34,15 @@ export const apiCall = async (endpoint, options = {}) => {
     console.log('API Response Data:', data);
     
     return { data, status: response.status, ok: response.ok };
+    
   } catch (err) {
     console.error('API Error:', err);
-    return null;
+    // FIX: Return proper error object instead of null
+    return { 
+      data: { detail: 'Network error: Unable to connect to server' }, 
+      status: 0, 
+      ok: false 
+    };
   }
 };
 
@@ -96,10 +102,9 @@ export const interactionAPI = {
   }),
 };
 
-// Project Managers API calls - FIXED: Changed to projectManagersAPI (with 's')
+// Project Managers API calls
 export const projectManagersAPI = {
   // Meter Issues
-  // In your projectManagersAPI object
   getAllInteractions: () => apiCall('/project-managers/interactions/'),
   getAllMeterIssues: () => apiCall('/project-managers/meter-issues/'),
   getMyMeterIssues: () => apiCall('/project-managers/meter-issues/my_issues/'),
