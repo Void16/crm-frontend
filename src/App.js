@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth';
+import { AuthProvider, useAuth } from './contexts/AuthContext'; // Import from contexts
 import Login from './pages/Login';
 import Profile from './components/Profile';
 import SalesDashboard from './pages/SalesDashboard';
@@ -8,10 +8,10 @@ import ProjectOfficerDashboard from './pages/ProjectOfficerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 
 // Create a wrapper component for Profile to handle navigation
-function ProfileWrapper({ user, onUpdateProfile }) {
+function ProfileWrapper() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
-  // Add null check for user
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -24,7 +24,6 @@ function ProfileWrapper({ user, onUpdateProfile }) {
   }
   
   const handleBack = () => {
-    // Navigate back to the appropriate dashboard based on user role
     if (user.user_type === 'project_officer') {
       navigate('/project-officer-dashboard');
     } else if (user.user_type === 'admin') {
@@ -37,15 +36,15 @@ function ProfileWrapper({ user, onUpdateProfile }) {
   return (
     <Profile 
       user={user} 
-      onBack={handleBack} 
-      onUpdateProfile={onUpdateProfile} 
+      onBack={handleBack}
     />
   );
 }
 
-// Role-based dashboard selector - ADD NULL CHECK
-function DashboardSelector({ user, onLogout }) {
-  // Add null check for user
+// Role-based dashboard selector
+function DashboardSelector({ onLogout }) {
+  const { user } = useAuth();
+  
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -68,104 +67,83 @@ function DashboardSelector({ user, onLogout }) {
   }
 }
 
-function App() {
-  const { user, token, login, register, logout } = useAuth();
+// Protected Route component
+const ProtectedRoute = ({ children }) => {
+  const { token, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return token ? children : <Navigate to="/login" />;
+};
+
+// Role-based route protection
+const AdminRoute = ({ children }) => {
+  const { token, user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return token && user?.user_type === 'admin' ? children : <Navigate to="/dashboard" />;
+};
+
+const ProjectOfficerRoute = ({ children }) => {
+  const { token, user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return token && user?.user_type === 'project_officer' ? children : <Navigate to="/dashboard" />;
+};
+
+const SalesEmployeeRoute = ({ children }) => {
+  const { token, user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return token && (user?.user_type === 'employee' || user?.user_type === 'sales') ? children : <Navigate to="/dashboard" />;
+};
+
+// Main App component that uses the auth context
+function AppContent() {
+  const { user, token, login, register, logout, loading } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
-  const [appLoading, setAppLoading] = useState(true); // Add app-level loading state
-
-  // Add loading effect
-  useEffect(() => {
-    // Set loading to false once we have user data or know there's no user
-    if (user !== undefined) { // Check if user data has been loaded (even if null)
-      setAppLoading(false);
-    }
-  }, [user]);
-
-  // Add the profile update function
-  const handleUpdateProfile = async (profileData) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('/api/employees/update_profile/', {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(profileData),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return { success: true, data };
-      } else {
-        const error = await response.json();
-        return { success: false, message: error.detail || 'Update failed' };
-      }
-    } catch (error) {
-      return { success: false, message: 'Network error' };
-    }
-  };
-
-  // Protected Route component - ADD NULL CHECK
-  const ProtectedRoute = ({ children }) => {
-    if (appLoading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
-          </div>
-        </div>
-      );
-    }
-    return token ? children : <Navigate to="/login" />;
-  };
-
-  // Role-based route protection
-  const AdminRoute = ({ children }) => {
-    if (appLoading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
-          </div>
-        </div>
-      );
-    }
-    return token && user?.user_type === 'admin' ? children : <Navigate to="/dashboard" />;
-  };
-
-  const ProjectOfficerRoute = ({ children }) => {
-    if (appLoading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
-          </div>
-        </div>
-      );
-    }
-    return token && user?.user_type === 'project_officer' ? children : <Navigate to="/dashboard" />;
-  };
-
-  const SalesEmployeeRoute = ({ children }) => {
-    if (appLoading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
-          </div>
-        </div>
-      );
-    }
-    return token && (user?.user_type === 'employee' || user?.user_type === 'sales') ? children : <Navigate to="/dashboard" />;
-  };
 
   // Show app-level loading screen
-  if (appLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -176,7 +154,6 @@ function App() {
     );
   }
 
-  // Use Router for navigation
   return (
     <Router>
       <div className="App">
@@ -205,12 +182,12 @@ function App() {
             } 
           />
           
-          {/* Main dashboard route - automatically redirects based on role */}
+          {/* Main dashboard route */}
           <Route 
             path="/dashboard" 
             element={
               <ProtectedRoute>
-                <DashboardSelector user={user} onLogout={logout} />
+                <DashboardSelector onLogout={logout} />
               </ProtectedRoute>
             } 
           />
@@ -243,15 +220,12 @@ function App() {
             } 
           />
           
-          {/* Profile route - accessible to all authenticated users */}
+          {/* Profile route */}
           <Route 
             path="/profile" 
             element={
               <ProtectedRoute>
-                <ProfileWrapper 
-                  user={user} 
-                  onUpdateProfile={handleUpdateProfile} 
-                />
+                <ProfileWrapper />
               </ProtectedRoute>
             } 
           />
@@ -261,6 +235,15 @@ function App() {
         </Routes>
       </div>
     </Router>
+  );
+}
+
+// Wrap the main App with AuthProvider
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
