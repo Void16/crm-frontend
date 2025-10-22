@@ -1020,7 +1020,7 @@ const Dashboard = ({ user, onLogout }) => {
         );
 
      // In your Dashboard component
-const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
+
 
 // Add to your collaboration modals
 const renderCollaborationModals = () => (
