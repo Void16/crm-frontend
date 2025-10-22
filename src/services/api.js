@@ -102,6 +102,47 @@ export const interactionAPI = {
   }),
 };
 
+// Collaboration API calls - UPDATED WITH CHANNEL DISCOVERY
+export const collaborationAPI = {
+  // Channels
+  getChannels: () => apiCall('/auth/channels/'),
+  createChannel: (data) => apiCall('/auth/channels/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
+  // Channel Discovery - MOVED FROM adminAPI
+  discoverChannels: () => apiCall('/auth/channels/discover/'),
+  joinChannel: (channelId) => apiCall(`/auth/channels/${channelId}/join/`, {
+    method: 'POST',
+  }),
+  leaveChannel: (channelId) => apiCall(`/auth/channels/${channelId}/leave/`, {
+    method: 'POST',
+  }),
+  getChannelMembers: (channelId) => apiCall(`/auth/channels/${channelId}/members/`),
+  
+  // Messages
+  // ✅ CORRECT
+  getChannelMessages: (channelId) => apiCall(`/auth/messages/?channel_id=${channelId}`),
+  sendMessage: (data) => apiCall('/auth/messages/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
+  // Notes
+  getNotes: () => apiCall('/auth/notes/'),
+  createNote: (data) => apiCall('/auth/notes/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  deleteNote: (id) => apiCall(`/auth/notes/${id}/`, {
+    method: 'DELETE',
+  }),
+  
+  // Activities
+  getActivities: () => apiCall('/auth/activities/'),
+};
+
 // Project Managers API calls
 export const projectManagersAPI = {
   // Meter Issues
@@ -196,6 +237,9 @@ export const adminAPI = {
   // Project Officer Interactions (Admin view)
   getAllProjectOfficerInteractions: () => apiCall('/project-managers/interactions/'),
   getProjectOfficerInteractionStats: (timeRange = '30') => apiCall(`/project-managers/admin-dashboard/interaction_stats/?time_range=${timeRange}`),
+  
+  // NOTE: Channel discovery methods have been moved to collaborationAPI
+  // discoverChannels, joinChannel, leaveChannel, getChannelMembers are now in collaborationAPI
 };
 
 // Combined API object for easy imports
@@ -203,6 +247,7 @@ export const api = {
   auth: authAPI,
   customers: customerAPI,
   interactions: interactionAPI,
+  collaboration: collaborationAPI,
   projectManagers: projectManagersAPI,
   admin: adminAPI,
 };

@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, MessageSquare, Plus, User, Settings, 
   BarChart3, FileText, LogOut, Building2, Menu, X,
-  AlertTriangle, Wrench, CheckCircle, Clock, MessageCircle,
-  MapPin// Add this import
+  AlertTriangle, Wrench, CheckCircle, Clock, Activity, MessageCircle,
+  MapPin, RefreshCw, Globe 
 } from 'lucide-react';
-import { Refresh } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { customerAPI, interactionAPI, adminAPI, projectManagersAPI, api } from '../services/api';
+import { customerAPI, interactionAPI, adminAPI, projectManagersAPI, api, collaborationAPI } from '../services/api';
 import CustomerForm from '../components/customers/CustomerForm';
 import InteractionForm from '../components/interactions/InteractionForm';
 import EmployeeForm from '../components/employees/EmployeeForm';
@@ -18,6 +17,10 @@ import EmployeesList from '../components/employees/EmployeesList';
 import Reports from '../components/reports/Reports';
 import AuditLogs from '../components/audit/AuditLogs';
 import Notification from '../components/common/Notification';
+import AIDashboard from '../components/ai/AIDashboard';
+import RealTimeDashboard from '../components/Dashboard/RealTimeDashboard';
+import CreateChannelModal from '../components/collaboration/CreateChannelModal';
+import ChannelDiscovery from '../components/collaboration/ChannelDiscovery';
 
 // Project Officer Components
 import MeterIssueForm from '../components/project-officer/MeterIssueForm';
@@ -25,13 +28,18 @@ import MeterIssuesList from '../components/project-officer/MeterIssuesList';
 import TechnicianAssignment from '../components/project-officer/TechnicianAssignment';
 import CustomerFeedbackForm from '../components/project-officer/CustomerFeedbackForm';
 import CustomerFeedbackList from '../components/project-officer/CustomerFeedbackList';
-import ProjectOfficerInteractionForm from '../components/project-officer/ProjectOfficerInteractionForm'; // Add this import
-import ProjectOfficerInteractionsList from '../components/project-officer/ProjectOfficerInteractionsList'; // Add this import
+import ProjectOfficerInteractionForm from '../components/project-officer/ProjectOfficerInteractionForm';
+import ProjectOfficerInteractionsList from '../components/project-officer/ProjectOfficerInteractionsList';
 import AdminInteractionsList from '../components/admin/AdminInteractionsList';
 
 // Admin Project Management Components
 import AdminMeterIssues from '../components/admin/AdminMeterIssues';
 import PerformanceMetrics from '../components/admin/PerformanceMetrics';
+
+// Collaboration Components
+import ActivityFeed from '../components/collaboration/ActivityFeed';
+import ChannelList from '../components/collaboration/ChannelList';
+import NotesList from '../components/collaboration/NotesList';
 
 const Dashboard = ({ user, onLogout }) => {
   // Determine default tab based on user role
@@ -49,6 +57,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [interactions, setInteractions] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
   
   // Project Officer States
   const [meterIssues, setMeterIssues] = useState([]);
@@ -57,10 +66,18 @@ const Dashboard = ({ user, onLogout }) => {
   const [performanceData, setPerformanceData] = useState([]);
   const [customerFeedbacks, setCustomerFeedbacks] = useState([]);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
-  const [projectOfficerInteractions, setProjectOfficerInteractions] = useState([]); // Add this state
+  const [projectOfficerInteractions, setProjectOfficerInteractions] = useState([]);
   const [adminInteractions, setAdminInteractions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Collaboration States
+  const [activities, setActivities] = useState([]);
+  const [channels, setChannels] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [selectedChannel, setSelectedChannel] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [collaborationLoading, setCollaborationLoading] = useState(false);
   
   // Modals
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -69,7 +86,11 @@ const Dashboard = ({ user, onLogout }) => {
   const [showMeterIssueModal, setShowMeterIssueModal] = useState(false);
   const [showTechnicianModal, setShowTechnicianModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [showProjectOfficerInteractionModal, setShowProjectOfficerInteractionModal] = useState(false); // Add this state
+  const [showProjectOfficerInteractionModal, setShowProjectOfficerInteractionModal] = useState(false);
+  
+  // Collaboration Modals
+  const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
+  const [showCreateNoteModal, setShowCreateNoteModal] = useState(false);
   
   // Form states
   const [customerForm, setCustomerForm] = useState({ 
@@ -94,6 +115,25 @@ const Dashboard = ({ user, onLogout }) => {
     evidence_image: null
   });
   
+  // Collaboration Form States
+  const [channelForm, setChannelForm] = useState({
+    name: '',
+    description: '',
+    channel_type: 'general',
+    is_private: false
+  });
+  
+  const [noteForm, setNoteForm] = useState({
+    title: '',
+    content: '',
+    is_public: false
+  });
+  
+  const [messageForm, setMessageForm] = useState({
+    content: '',
+    channel: ''
+  });
+
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedIssue, setSelectedIssue] = useState(null);
@@ -102,8 +142,199 @@ const Dashboard = ({ user, onLogout }) => {
 
   const navigate = useNavigate();
 
-  const handleProfileClick = () => {
-    navigate('/profile');
+  // Collaboration Functions
+  const fetchActivities = async () => {
+    setCollaborationLoading(true);
+    try {
+      console.log('🔄 Fetching team activities...');
+      const result = await collaborationAPI.getActivities();
+      console.log('📨 Activities response:', result);
+      
+      if (result?.ok) {
+        setActivities(result.data);
+        console.log(`✅ Loaded ${result.data.length} activity items`);
+      } else {
+        console.error('❌ Failed to fetch activities:', result);
+      }
+    } catch (error) {
+      console.error('💥 Error fetching activities:', error);
+    } finally {
+      setCollaborationLoading(false);
+    }
+  };
+
+  const fetchChannels = async () => {
+    setCollaborationLoading(true);
+    try {
+      console.log('🔄 Fetching channels...');
+      const result = await collaborationAPI.getChannels();
+      console.log('📨 Channels response:', result);
+      
+      if (result?.ok) {
+        setChannels(result.data);
+        console.log(`✅ Loaded ${result.data.length} channels`);
+      } else {
+        console.error('❌ Failed to fetch channels:', result);
+      }
+    } catch (error) {
+      console.error('💥 Error fetching channels:', error);
+    } finally {
+      setCollaborationLoading(false);
+    }
+  };
+
+  const fetchNotes = async () => {
+    setCollaborationLoading(true);
+    try {
+      console.log('🔄 Fetching notes...');
+      const result = await collaborationAPI.getNotes();
+      console.log('📨 Notes response:', result);
+      
+      if (result?.ok) {
+        setNotes(result.data);
+        console.log(`✅ Loaded ${result.data.length} notes`);
+      } else {
+        console.error('❌ Failed to fetch notes:', result);
+      }
+    } catch (error) {
+      console.error('💥 Error fetching notes:', error);
+    } finally {
+      setCollaborationLoading(false);
+    }
+  };
+
+  const fetchChannelMessages = async (channelId) => {
+    setCollaborationLoading(true);
+    try {
+      console.log(`🔄 Fetching messages for channel ${channelId}...`);
+      const result = await collaborationAPI.getChannelMessages(channelId);
+      console.log('📨 Messages response:', result);
+      
+      if (result?.ok) {
+        setMessages(result.data);
+        console.log(`✅ Loaded ${result.data.length} messages`);
+      } else {
+        console.error('❌ Failed to fetch messages:', result);
+      }
+    } catch (error) {
+      console.error('💥 Error fetching messages:', error);
+    } finally {
+      setCollaborationLoading(false);
+    }
+  };
+
+  const createChannel = async (formData) => {
+  setLoading(true);
+  setError('');
+  
+  try {
+    console.log('🔄 Creating channel with data:', formData);
+    const result = await collaborationAPI.createChannel(formData);
+    
+    if (result?.ok) {
+      setSuccess('Channel created successfully!');
+      setShowCreateChannelModal(false);
+      fetchChannels(); // Refresh the channels list
+    } else {
+      console.error('❌ Failed to create channel - Server response:', result.data);
+      
+      // Extract specific error messages
+      let errorMessage = 'Failed to create channel';
+      if (result?.data) {
+        if (result.data.detail) {
+          errorMessage = result.data.detail;
+        } else if (result.data.name) {
+          errorMessage = `Name: ${result.data.name.join(', ')}`;
+        } else if (result.data.channel_type) {
+          errorMessage = `Channel Type: ${result.data.channel_type.join(', ')}`;
+        } else if (typeof result.data === 'string') {
+          errorMessage = result.data;
+        } else {
+          errorMessage = JSON.stringify(result.data);
+        }
+      }
+      setError(errorMessage);
+    }
+  } catch (err) {
+    console.error('💥 Error creating channel:', err);
+    setError('Network error: Failed to create channel');
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const createNote = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      console.log('🔄 Creating note:', noteForm);
+      const result = await collaborationAPI.createNote(noteForm);
+      
+      if (result?.ok) {
+        setSuccess('Note created successfully!');
+        setShowCreateNoteModal(false);
+        setNoteForm({ title: '', content: '', is_public: false });
+        fetchNotes();
+      } else {
+        setError('Failed to create note');
+      }
+    } catch (err) {
+      console.error('💥 Error creating note:', err);
+      setError('Network error: Failed to create note');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!messageForm.content.trim() || !selectedChannel) return;
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const messageData = {
+        content: messageForm.content,
+        channel: selectedChannel.id
+      };
+      
+      console.log('🔄 Sending message:', messageData);
+      const result = await collaborationAPI.sendMessage(messageData);
+      
+      if (result?.ok) {
+        setMessageForm({ ...messageForm, content: '' });
+        fetchChannelMessages(selectedChannel.id);
+      } else {
+        setError('Failed to send message');
+      }
+    } catch (err) {
+      console.error('💥 Error sending message:', err);
+      setError('Network error: Failed to send message');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteNote = async (noteId) => {
+    if (window.confirm('Are you sure you want to delete this note?')) {
+      setLoading(true);
+      try {
+        const result = await collaborationAPI.deleteNote(noteId);
+        
+        if (result?.ok || result?.status === 204) {
+          setSuccess('Note deleted successfully!');
+          fetchNotes();
+        } else {
+          setError('Failed to delete note');
+        }
+      } catch (err) {
+        console.error('💥 Error deleting note:', err);
+        setError('Network error: Failed to delete note');
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   const fetchCustomerFeedbacks = async () => {
@@ -126,7 +357,6 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Add this function for project officer interactions
   const fetchProjectOfficerInteractions = async () => {
     try {
       console.log('🔄 Fetching project officer interactions...');
@@ -144,7 +374,6 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Add this function to handle interaction submission
   const recordProjectOfficerInteraction = async (interactionData) => {
     setLoading(true);
     setError('');
@@ -159,7 +388,7 @@ const Dashboard = ({ user, onLogout }) => {
       if (result?.ok) {
         setSuccess('Interaction recorded successfully!');
         setShowProjectOfficerInteractionModal(false);
-        fetchData(); // Refresh to show the new interaction
+        fetchData();
       } else {
         console.error('❌ Failed to record interaction:', result);
         setError('Failed to record interaction');
@@ -176,12 +405,11 @@ const Dashboard = ({ user, onLogout }) => {
     if (!user) return;
     
     setLoading(true);
-    setError(''); // Clear previous errors
+    setError('');
     
     try {
       console.log('🔄 Starting data fetch for:', user.user_type);
 
-      // Use Promise.allSettled to handle all API calls independently
       const promises = [];
 
       // Always fetch these for all users
@@ -209,6 +437,19 @@ const Dashboard = ({ user, onLogout }) => {
           console.warn('⚠️ Failed to fetch interactions:', err);
           return null;
         })
+      );
+
+      // Fetch collaboration data for all users
+      promises.push(
+        fetchActivities().catch(err => console.warn('⚠️ Failed to fetch activities:', err))
+      );
+
+      promises.push(
+        fetchChannels().catch(err => console.warn('⚠️ Failed to fetch channels:', err))
+      );
+
+      promises.push(
+        fetchNotes().catch(err => console.warn('⚠️ Failed to fetch notes:', err))
       );
 
       // Admin-specific data
@@ -315,11 +556,11 @@ const Dashboard = ({ user, onLogout }) => {
         );
 
         promises.push(
-        fetchAdminInteractions().catch(err => {
-          console.warn('⚠️ Failed to fetch admin interactions:', err);
-          return null;
-        })
-      );
+          fetchAdminInteractions().catch(err => {
+            console.warn('⚠️ Failed to fetch admin interactions:', err);
+            return null;
+          })
+        );
       }
 
       // Project officer data
@@ -378,7 +619,6 @@ const Dashboard = ({ user, onLogout }) => {
       console.log('🎉 All data fetch operations completed');
 
     } catch (err) {
-      // This should only catch critical errors, not individual API failures
       console.error('💥 Critical error in fetchData:', err);
       setError('Failed to fetch some data. Please refresh the page.');
     } finally {
@@ -386,7 +626,23 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Project Officer Functions
+  const fetchAdminInteractions = async () => {
+    try {
+      console.log('🔄 Fetching admin interactions...');
+      const result = await projectManagersAPI.getAllInteractions();
+      console.log('📨 Admin interactions response:', result);
+      
+      if (result?.ok) {
+        setAdminInteractions(result.data);
+        console.log(`✅ Loaded ${result.data.length} admin interaction items`);
+      } else {
+        console.error('❌ Failed to fetch admin interactions:', result);
+      }
+    } catch (error) {
+      console.error('💥 Error fetching admin interactions:', error);
+    }
+  };
+
   const reportMeterIssue = async () => {
     setLoading(true);
     setError('');
@@ -425,23 +681,6 @@ const Dashboard = ({ user, onLogout }) => {
       setLoading(false);
     }
   };
-
-  const fetchAdminInteractions = async () => {
-  try {
-    console.log('🔄 Fetching admin interactions...');
-    const result = await projectManagersAPI.getAllInteractions();
-    console.log('📨 Admin interactions response:', result);
-    
-    if (result?.ok) {
-      setAdminInteractions(result.data);
-      console.log(`✅ Loaded ${result.data.length} admin interaction items`);
-    } else {
-      console.error('❌ Failed to fetch admin interactions:', result);
-    }
-  } catch (error) {
-    console.error('💥 Error fetching admin interactions:', error);
-  }
-};
 
   const assignTechnician = async (issueId, technicianId, appointmentTime) => {
     setLoading(true);
@@ -546,7 +785,6 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Existing functions (createCustomer, updateCustomer, etc.) remain the same...
   const createCustomer = async () => {
     setLoading(true);
     setError('');
@@ -705,6 +943,10 @@ const Dashboard = ({ user, onLogout }) => {
     setMobileMenuOpen(false);
   };
 
+  const handleProfileClick = () => {
+    navigate('/profile');
+  };
+
   // Define tabs based on user type
   const getTabItems = () => {
     const baseTabs = [
@@ -712,20 +954,30 @@ const Dashboard = ({ user, onLogout }) => {
       { id: 'interactions', label: 'Interactions', icon: MessageSquare },
     ];
 
+    const collaborationTabs = [
+      { id: 'activity', label: 'Team Activity', icon: Activity },
+      { id: 'channels', label: 'Channels', icon: MessageCircle },
+      { id: 'notes', label: 'Shared Notes', icon: FileText },
+    ];
+
     const projectOfficerTabs = [
       { id: 'meter-issues', label: 'Meter Issues', icon: AlertTriangle },
       { id: 'assigned-issues', label: 'My Assigned Issues', icon: Wrench },
-      { id: 'field-interactions', label: 'Field Interactions', icon: MapPin }, // Add this tab
+      { id: 'field-interactions', label: 'Field Interactions', icon: MapPin },
       { id: 'customer-feedback', label: 'Customer Feedback', icon: MessageCircle },
+      ...collaborationTabs,
     ];
 
     const adminTabs = [
+      { id: 'real-time-dashboard', label: 'Live Dashboard', icon: Activity },
+      { id: 'ai-analysis', label: 'AI Insights', icon: Activity }, 
       { id: 'customers', label: 'All Customers', icon: Users },
       ...baseTabs,
       { id: 'employees', label: 'Employees', icon: Settings },
       { id: 'project-management', label: 'Project Management', icon: Building2 },
       { id: 'field-interactions', label: 'Field Interactions', icon: MapPin },
       { id: 'customer-feedback', label: 'Customer Feedback', icon: MessageCircle },
+      ...collaborationTabs,
       { id: 'reports', label: 'Reports', icon: BarChart3 },
       { id: 'audit', label: 'Audit Logs', icon: FileText }
     ];
@@ -736,15 +988,239 @@ const Dashboard = ({ user, onLogout }) => {
       case 'project_officer':
         return projectOfficerTabs;
       default:
-        return baseTabs;
+        return [...baseTabs, ...collaborationTabs];
     }
   };
 
+  const renderCollaborationContent = () => {
+    switch(activeTab) {
+      case 'activity':
+        return (
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+              <div>
+                <h2 className="text-lg font-medium text-gray-900">Team Activity</h2>
+                <p className="text-sm text-gray-600 mt-1">Recent team activities and updates</p>
+              </div>
+              <button
+                onClick={fetchActivities}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors duration-200"
+                disabled={collaborationLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${collaborationLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+            <ActivityFeed 
+              activities={activities}
+              user={user}
+              onRefresh={fetchActivities}
+            />
+          </div>
+        );
+
+     // In your Dashboard component
+const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
+
+// Add to your collaboration modals
+const renderCollaborationModals = () => (
+  <>
+    <CreateChannelModal
+      isOpen={showCreateChannelModal}
+      onClose={() => setShowCreateChannelModal(false)}
+      onCreate={createChannel}
+    />
+    
+    {/* Channel Discovery Modal */}
+    {showDiscoveryModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <ChannelDiscovery
+          onJoinChannel={(channelId) => {
+            setShowDiscoveryModal(false);
+            fetchChannels(); // Refresh channels list
+          }}
+          onClose={() => setShowDiscoveryModal(false)}
+        />
+      </div>
+    )}
+    
+    {/* ... your note modal */}
+  </>
+);
+
+// Update your Channels tab to include discovery button
+case 'channels':
+  return (
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <div>
+          <h2 className="text-lg font-medium text-gray-900">Team Channels</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Communicate with your team in real-time
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowDiscoveryModal(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center transition-colors duration-200"
+          >
+            <Globe className="h-4 w-4 mr-1" />
+            Discover Channels
+          </button>
+          <button
+            onClick={() => setShowCreateChannelModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors duration-200"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Create Channel
+          </button>
+        </div>
+      </div>
+      <ChannelList
+        channels={channels}
+        messages={messages}
+        selectedChannel={selectedChannel}
+        onSelectChannel={(channel) => {
+          setSelectedChannel(channel);
+          fetchChannelMessages(channel.id);
+        }}
+        messageForm={messageForm}
+        setMessageForm={setMessageForm}
+        onSendMessage={sendMessage}
+        loading={loading || collaborationLoading}
+      />
+    </div>
+  );
+
+      case 'notes':
+        return (
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+              <div>
+                <h2 className="text-lg font-medium text-gray-900">Shared Notes</h2>
+                <p className="text-sm text-gray-600 mt-1">Collaborative notes and documentation</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCreateNoteModal(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors duration-200"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Create Note
+                </button>
+                <button
+                  onClick={fetchNotes}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center transition-colors duration-200"
+                  disabled={collaborationLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-1 ${collaborationLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
+            </div>
+            <NotesList
+              notes={notes}
+              onDeleteNote={deleteNote}
+              loading={collaborationLoading}
+            />
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const renderCollaborationModals = () => (
+  <>
+    
+  {/* Create Channel Modal */}
+  <CreateChannelModal
+    isOpen={showCreateChannelModal}
+    onClose={() => {
+      setShowCreateChannelModal(false);
+      setError('');
+    }}
+    onCreate={createChannel}
+  />
+
+  {/* Channel Discovery Modal */}
+  {showDiscoveryModal && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <ChannelDiscovery
+        onJoinChannel={(channelId) => {
+          setShowDiscoveryModal(false);
+          fetchChannels(); // Refresh channels list
+        }}
+        onClose={() => setShowDiscoveryModal(false)}
+      />
+    </div>
+  )}
+
+  {/* Create Note Modal */}
+  {showCreateNoteModal && (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="mt-3">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Create Note</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Title</label>
+              <input
+                type="text"
+                value={noteForm.title}
+                onChange={(e) => setNoteForm({...noteForm, title: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter note title"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Content</label>
+              <textarea
+                value={noteForm.content}
+                onChange={(e) => setNoteForm({...noteForm, content: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter note content"
+                rows="6"
+              />
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                checked={noteForm.is_public}
+                onChange={(e) => setNoteForm({...noteForm, is_public: e.target.checked})}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label className="ml-2 block text-sm text-gray-700">Private Note</label>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-3 mt-6">
+            <button
+              onClick={() => setShowCreateNoteModal(false)}
+              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={createNote}
+              disabled={loading || !noteForm.title.trim() || !noteForm.content.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Creating...' : 'Create Note'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
+
+  </>
+);
   const tabItems = getTabItems();
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header - Same as before */}
+      {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -884,6 +1360,20 @@ const Dashboard = ({ user, onLogout }) => {
 
         {/* Content */}
         <div className="bg-white rounded-lg shadow">
+          {/* Collaboration Content */}
+          {renderCollaborationContent()}
+
+          {/* Existing Tab Content */}
+          {activeTab === 'real-time-dashboard' && user?.user_type === 'admin' && (
+            <div className="p-4 sm:p-6">
+              <RealTimeDashboard 
+                customers={customers}
+                interactions={interactions}
+                loading={loading}
+              />
+            </div>
+          )}
+
           {/* All Customers Tab (Admin Only) */}
           {activeTab === 'customers' && user?.user_type === 'admin' && (
             <div className="p-4 sm:p-6">
@@ -913,6 +1403,29 @@ const Dashboard = ({ user, onLogout }) => {
               ) : (
                 <p className="text-gray-500 text-center py-8">No customers found.</p>
               )}
+            </div>
+          )}
+
+          {activeTab === 'ai-analysis' && user?.user_type === 'admin' && (
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900">AI Customer Insights</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Machine-powered analysis of your customer data
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Real-time Analysis</span>
+                </div>
+              </div>
+              
+              <AIDashboard 
+                customers={customers}
+                interactions={interactions}
+                loading={loading}
+              />
             </div>
           )}
 
@@ -1179,6 +1692,7 @@ const Dashboard = ({ user, onLogout }) => {
               )}
             </div>
           )}
+
           {/* Field Interactions Tab (Admin) */}
           {activeTab === 'field-interactions' && user?.user_type === 'admin' && (
             <div className="p-4 sm:p-6">
@@ -1189,6 +1703,7 @@ const Dashboard = ({ user, onLogout }) => {
               />
             </div>
           )}
+
           {/* Customer Feedback Tab (Admin & Project Officers) */}
           {(activeTab === 'customer-feedback' && (user?.user_type === 'admin' || user?.user_type === 'project_officer')) && (
             <div className="p-4 sm:p-6">
@@ -1344,8 +1859,11 @@ const Dashboard = ({ user, onLogout }) => {
         onSubmit={recordProjectOfficerInteraction}
         loading={loading}
         error={error}
-        assignedArea={user?.assigned_area || "General Area"} // Make sure your user model has this field
+        assignedArea={user?.assigned_area || "General Area"}
       />
+
+      {/* Collaboration Modals */}
+      {renderCollaborationModals()}
     </div>
   );
 };
