@@ -26,6 +26,7 @@ const InteractionsList = ({
   onAddInteraction,
   onEditInteraction,
   onDeleteInteraction,
+  onViewInteraction,
   showActions = false,
   isLoading = false 
 }) => {
