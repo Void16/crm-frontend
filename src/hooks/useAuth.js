@@ -4,23 +4,56 @@ import { authAPI } from '../services/api';
 export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // CHANGED: Start as true
 
+  // ADDED: Fetch user data on mount if token exists
   useEffect(() => {
-    if (token && !user) {
-      const userData = localStorage.getItem('userData');
-      if (userData) {
-        setUser(JSON.parse(userData));
+    const initializeAuth = async () => {
+      const storedToken = localStorage.getItem('token');
+      
+      if (storedToken) {
+        setToken(storedToken);
+        
+        try {
+          // Try to fetch fresh user data from server
+          const result = await authAPI.getCurrentUser();
+          
+          if (result?.ok) {
+            setUser(result.data);
+            localStorage.setItem('userData', JSON.stringify(result.data));
+          } else {
+            // Token is invalid, clear everything
+            console.error('Failed to fetch user data:', result);
+            localStorage.removeItem('token');
+            localStorage.removeItem('userData');
+            setToken(null);
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('Error fetching user:', error);
+          // On error, try to use cached data as fallback
+          const cachedUserData = localStorage.getItem('userData');
+          if (cachedUserData) {
+            setUser(JSON.parse(cachedUserData));
+          } else {
+            localStorage.removeItem('token');
+            setToken(null);
+          }
+        }
       }
-    }
-  }, [token, user]);
+      
+      setLoading(false);
+    };
+
+    initializeAuth();
+  }, []); // CHANGED: Only run once on mount
 
   const login = async (credentials) => {
     setLoading(true);
     const result = await authAPI.login(credentials);
     
     if (result?.ok) {
-      // Check if 2FA is required (your Django API returns requires_2fa in the data)
+      // Check if 2FA is required
       if (result.data.requires_2fa) {
         setLoading(false);
         return { 

@@ -60,6 +60,8 @@ export const authAPI = {
     body: JSON.stringify(userData),
   }),
   
+  getCurrentUser: () => apiCall('/auth/employees/me/'),
+  
   // 2FA Methods - Updated to match your URL structure
   updateProfile: (data) => apiCall('/auth/employees/update_profile/', {
     method: 'PATCH',
