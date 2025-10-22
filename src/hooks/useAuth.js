@@ -4,9 +4,9 @@ import { authAPI } from '../services/api';
 export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [loading, setLoading] = useState(true); // CHANGED: Start as true
+  const [loading, setLoading] = useState(true);
 
-  // ADDED: Fetch user data on mount if token exists
+  // Fetch user data on mount if token exists
   useEffect(() => {
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('token');
@@ -46,15 +46,18 @@ export const useAuth = () => {
     };
 
     initializeAuth();
-  }, []); // CHANGED: Only run once on mount
+  }, []);
 
   const login = async (credentials) => {
     setLoading(true);
     const result = await authAPI.login(credentials);
     
+    console.log('🔵 LOGIN API RESULT:', result); // Debug log
+    
     if (result?.ok) {
       // Check if 2FA is required
       if (result.data.requires_2fa) {
+        console.log('✅ 2FA is required');
         setLoading(false);
         return { 
           success: false, 
@@ -63,13 +66,27 @@ export const useAuth = () => {
         };
       }
       
-      setToken(result.data.access);
-      localStorage.setItem('token', result.data.access);
-      localStorage.setItem('userData', JSON.stringify(result.data.user));
-      setUser(result.data.user);
+      // Check if we got tokens (successful login)
+      if (result.data.access && result.data.user) {
+        console.log('✅ Login successful with tokens');
+        setToken(result.data.access);
+        localStorage.setItem('token', result.data.access);
+        localStorage.setItem('userData', JSON.stringify(result.data.user));
+        setUser(result.data.user);
+        setLoading(false);
+        return { success: true };
+      }
+      
+      // If we get here, unexpected response
+      console.error('❌ Unexpected response format:', result.data);
       setLoading(false);
-      return { success: true };
+      return { 
+        success: false, 
+        message: 'Unexpected response from server' 
+      };
     } else {
+      // Login failed
+      console.error('❌ Login failed:', result);
       setLoading(false);
       return { 
         success: false, 

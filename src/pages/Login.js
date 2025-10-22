@@ -12,21 +12,30 @@ const Login = ({ onLogin, onRegister, showRegister, onShowRegister, onHideRegist
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    console.log('🔵 Login form data:', loginForm);
+    
     setLoading(true);
     setError('');
     
     const result = await onLogin(loginForm);
     
+    console.log('🔵 Login result:', result);
+    
     if (result.requires_2fa) {
+      console.log('✅ Showing 2FA input');
       setRequires2FA(true);
+      setLoading(false);
     } else if (!result.success) {
+      console.log('❌ Login failed:', result.message);
       setError(result.message);
       setRequires2FA(false);
+      setLoading(false);
     } else {
+      console.log('✅ Login successful, redirecting...');
       setRequires2FA(false);
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -106,6 +115,7 @@ const Login = ({ onLogin, onRegister, showRegister, onShowRegister, onHideRegist
                   className="w-full px-3 py-2 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                   placeholder="000000"
                   autoComplete="one-time-code"
+                  autoFocus
                 />
                 <p className="text-xs text-yellow-600 mt-1">
                   Open your authenticator app to get the current code
