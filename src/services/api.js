@@ -124,7 +124,6 @@ export const collaborationAPI = {
   getChannelMembers: (channelId) => apiCall(`/auth/channels/${channelId}/members/`),
   
   // Messages
-  // ✅ CORRECT
   getChannelMessages: (channelId) => apiCall(`/auth/messages/?channel_id=${channelId}`),
   sendMessage: (data) => apiCall('/auth/messages/', {
     method: 'POST',
@@ -200,7 +199,7 @@ export const projectManagersAPI = {
     body: JSON.stringify(interactionData),
   }),
   getMyInteractions: () => apiCall('/project-managers/interactions/my_interactions/'),
-  getAllInteractions: () => apiCall('/project-managers/interactions/'), // For admin view
+  getAllInteractions: () => apiCall('/project-managers/interactions/'),
   updateInteraction: (id, interactionData) => apiCall(`/project-managers/interactions/${id}/`, {
     method: 'PUT',
     body: JSON.stringify(interactionData),
@@ -240,8 +239,19 @@ export const adminAPI = {
   getAllProjectOfficerInteractions: () => apiCall('/project-managers/interactions/'),
   getProjectOfficerInteractionStats: (timeRange = '30') => apiCall(`/project-managers/admin-dashboard/interaction_stats/?time_range=${timeRange}`),
   
-  // NOTE: Channel discovery methods have been moved to collaborationAPI
-  // discoverChannels, joinChannel, leaveChannel, getChannelMembers are now in collaborationAPI
+  // 👇 PUBLIC FEEDBACK MANAGEMENT - ADDED HERE 👇
+  getPublicFeedback: (params = '') => apiCall(`/auth/public-feedback/${params}`),
+  updateFeedbackStatus: (id, statusData) => apiCall(`/auth/public-feedback/${id}/update_status/`, {
+    method: 'POST',
+    body: JSON.stringify(statusData),
+  }),
+  assignFeedback: (id, employeeId) => apiCall(`/auth/public-feedback/${id}/assign/`, {
+    method: 'POST',
+    body: JSON.stringify({ employee_id: employeeId }),
+  }),
+  deleteFeedback: (id) => apiCall(`/auth/public-feedback/${id}/`, {
+    method: 'DELETE',
+  }),
 };
 
 // Combined API object for easy imports

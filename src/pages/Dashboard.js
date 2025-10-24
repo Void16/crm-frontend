@@ -35,7 +35,7 @@ import AdminInteractionsList from '../components/admin/AdminInteractionsList';
 // Admin Project Management Components
 import AdminMeterIssues from '../components/admin/AdminMeterIssues';
 import PerformanceMetrics from '../components/admin/PerformanceMetrics';
-
+import FeedbackManagement from '../components/admin/FeedbackManagement';
 // Collaboration Components
 import ActivityFeed from '../components/collaboration/ActivityFeed';
 import ChannelList from '../components/collaboration/ChannelList';
@@ -224,44 +224,44 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const createChannel = async (formData) => {
-  setLoading(true);
-  setError('');
-  
-  try {
-    console.log('🔄 Creating channel with data:', formData);
-    const result = await collaborationAPI.createChannel(formData);
+    setLoading(true);
+    setError('');
     
-    if (result?.ok) {
-      setSuccess('Channel created successfully!');
-      setShowCreateChannelModal(false);
-      fetchChannels(); // Refresh the channels list
-    } else {
-      console.error('❌ Failed to create channel - Server response:', result.data);
+    try {
+      console.log('🔄 Creating channel with data:', formData);
+      const result = await collaborationAPI.createChannel(formData);
       
-      // Extract specific error messages
-      let errorMessage = 'Failed to create channel';
-      if (result?.data) {
-        if (result.data.detail) {
-          errorMessage = result.data.detail;
-        } else if (result.data.name) {
-          errorMessage = `Name: ${result.data.name.join(', ')}`;
-        } else if (result.data.channel_type) {
-          errorMessage = `Channel Type: ${result.data.channel_type.join(', ')}`;
-        } else if (typeof result.data === 'string') {
-          errorMessage = result.data;
-        } else {
-          errorMessage = JSON.stringify(result.data);
+      if (result?.ok) {
+        setSuccess('Channel created successfully!');
+        setShowCreateChannelModal(false);
+        fetchChannels(); // Refresh the channels list
+      } else {
+        console.error('❌ Failed to create channel - Server response:', result.data);
+        
+        // Extract specific error messages
+        let errorMessage = 'Failed to create channel';
+        if (result?.data) {
+          if (result.data.detail) {
+            errorMessage = result.data.detail;
+          } else if (result.data.name) {
+            errorMessage = `Name: ${result.data.name.join(', ')}`;
+          } else if (result.data.channel_type) {
+            errorMessage = `Channel Type: ${result.data.channel_type.join(', ')}`;
+          } else if (typeof result.data === 'string') {
+            errorMessage = result.data;
+          } else {
+            errorMessage = JSON.stringify(result.data);
+          }
         }
+        setError(errorMessage);
       }
-      setError(errorMessage);
+    } catch (err) {
+      console.error('💥 Error creating channel:', err);
+      setError('Network error: Failed to create channel');
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error('💥 Error creating channel:', err);
-    setError('Network error: Failed to create channel');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const createNote = async () => {
     setLoading(true);
@@ -977,6 +977,7 @@ const Dashboard = ({ user, onLogout }) => {
       { id: 'project-management', label: 'Project Management', icon: Building2 },
       { id: 'field-interactions', label: 'Field Interactions', icon: MapPin },
       { id: 'customer-feedback', label: 'Customer Feedback', icon: MessageCircle },
+      { id: 'public-feedback', label: 'Public Feedback', icon: MessageSquare },
       ...collaborationTabs,
       { id: 'reports', label: 'Reports', icon: BarChart3 },
       { id: 'audit', label: 'Audit Logs', icon: FileText }
@@ -993,255 +994,259 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const renderCollaborationContent = () => {
-    switch(activeTab) {
-      case 'activity':
-        return (
-          <div className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-              <div>
-                <h2 className="text-lg font-medium text-gray-900">Team Activity</h2>
-                <p className="text-sm text-gray-600 mt-1">Recent team activities and updates</p>
+  switch(activeTab) {
+    case 'activity':
+      return (
+        <div className="flex flex-col h-full bg-gray-50">
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <h1 className="text-xl font-semibold text-gray-900">Activity</h1>
+                <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                  {activities.length}
+                </span>
               </div>
               <button
                 onClick={fetchActivities}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors duration-200"
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
                 disabled={collaborationLoading}
               >
-                <RefreshCw className={`h-4 w-4 mr-1 ${collaborationLoading ? 'animate-spin' : ''}`} />
-                Refresh
+                <RefreshCw className={`h-5 w-5 ${collaborationLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
+            <p className="text-sm text-gray-500 mt-1">Recent team activities</p>
+          </div>
+
+          {/* Activity List */}
+          <div className="flex-1 overflow-y-auto">
             <ActivityFeed 
               activities={activities}
               user={user}
               onRefresh={fetchActivities}
             />
           </div>
-        );
-
-     // In your Dashboard component
-
-
-// Add to your collaboration modals
-const renderCollaborationModals = () => (
-  <>
-    <CreateChannelModal
-      isOpen={showCreateChannelModal}
-      onClose={() => setShowCreateChannelModal(false)}
-      onCreate={createChannel}
-    />
-    
-    {/* Channel Discovery Modal */}
-    {showDiscoveryModal && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <ChannelDiscovery
-          onJoinChannel={(channelId) => {
-            setShowDiscoveryModal(false);
-            fetchChannels(); // Refresh channels list
-          }}
-          onClose={() => setShowDiscoveryModal(false)}
-        />
-      </div>
-    )}
-    
-    {/* ... your note modal */}
-  </>
-);
-
-// Update your Channels tab to include discovery button
-case 'channels':
-  return (
-    <div className="p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <div>
-          <h2 className="text-lg font-medium text-gray-900">Team Channels</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Communicate with your team in real-time
-          </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowDiscoveryModal(true)}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center transition-colors duration-200"
-          >
-            <Globe className="h-4 w-4 mr-1" />
-            Discover Channels
-          </button>
-          <button
-            onClick={() => setShowCreateChannelModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors duration-200"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Create Channel
-          </button>
-        </div>
-      </div>
-      <ChannelList
-        channels={channels}
-        messages={messages}
-        selectedChannel={selectedChannel}
-        onSelectChannel={(channel) => {
-          setSelectedChannel(channel);
-          fetchChannelMessages(channel.id);
-        }}
-        messageForm={messageForm}
-        setMessageForm={setMessageForm}
-        onSendMessage={sendMessage}
-        loading={loading || collaborationLoading}
-      />
-    </div>
-  );
+      );
 
-      case 'notes':
-        return (
-          <div className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-              <div>
-                <h2 className="text-lg font-medium text-gray-900">Shared Notes</h2>
-                <p className="text-sm text-gray-600 mt-1">Collaborative notes and documentation</p>
-              </div>
-              <div className="flex gap-2">
+    case 'channels':
+      return (
+        <div className="flex flex-col h-full bg-white">
+          {/* Header */}
+          <div className="bg-green-600 text-white px-4 py-3 sticky top-0 z-10">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-semibold">Channels</h1>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowCreateNoteModal(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors duration-200"
+                  onClick={() => setShowDiscoveryModal(true)}
+                  className="p-2 hover:bg-green-700 rounded-full transition-colors"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Create Note
+                  <Globe className="h-5 w-5" />
                 </button>
                 <button
-                  onClick={fetchNotes}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center transition-colors duration-200"
-                  disabled={collaborationLoading}
+                  onClick={() => setShowCreateChannelModal(true)}
+                  className="p-2 hover:bg-green-700 rounded-full transition-colors"
                 >
-                  <RefreshCw className={`h-4 w-4 mr-1 ${collaborationLoading ? 'animate-spin' : ''}`} />
-                  Refresh
+                  <Plus className="h-5 w-5" />
                 </button>
               </div>
             </div>
+            <p className="text-green-100 text-sm mt-1">Team communication</p>
+          </div>
+
+          {/* Channel List */}
+          <div className="flex-1 overflow-y-auto">
+  <ChannelList
+    channels={channels}
+    messages={messages}
+    selectedChannel={selectedChannel}
+    onSelectChannel={(channel) => {
+      setSelectedChannel(channel);
+      // Only fetch messages if channel is not null
+      if (channel && channel.id) {
+        fetchChannelMessages(channel.id);
+      } else {
+        // Optional: Clear messages when no channel is selected
+        setMessages([]);
+      }
+    }}
+    messageForm={messageForm}
+    setMessageForm={setMessageForm}
+    onSendMessage={sendMessage}
+    loading={loading || collaborationLoading}
+  />
+</div>
+        </div>
+      );
+
+    case 'notes':
+      return (
+        <div className="flex flex-col h-full bg-gray-50">
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <h1 className="text-xl font-semibold text-gray-900">Notes</h1>
+                <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                  {notes.length}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={fetchNotes}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+                  disabled={collaborationLoading}
+                >
+                  <RefreshCw className={`h-5 w-5 ${collaborationLoading ? 'animate-spin' : ''}`} />
+                </button>
+                <button
+                  onClick={() => setShowCreateNoteModal(true)}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500 mt-1">Collaborative notes</p>
+          </div>
+
+          {/* Notes List */}
+          <div className="flex-1 overflow-y-auto">
             <NotesList
               notes={notes}
               onDeleteNote={deleteNote}
               loading={collaborationLoading}
             />
           </div>
-        );
 
-      default:
-        return null;
-    }
-  };
-
-  const renderCollaborationModals = () => (
-  <>
-    
-  {/* Create Channel Modal */}
-  <CreateChannelModal
-    isOpen={showCreateChannelModal}
-    onClose={() => {
-      setShowCreateChannelModal(false);
-      setError('');
-    }}
-    onCreate={createChannel}
-  />
-
-  {/* Channel Discovery Modal */}
-  {showDiscoveryModal && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <ChannelDiscovery
-        onJoinChannel={(channelId) => {
-          setShowDiscoveryModal(false);
-          fetchChannels(); // Refresh channels list
-        }}
-        onClose={() => setShowDiscoveryModal(false)}
-      />
-    </div>
-  )}
-
-  {/* Create Note Modal */}
-  {showCreateNoteModal && (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div className="mt-3">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Create Note</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Title</label>
-              <input
-                type="text"
-                value={noteForm.title}
-                onChange={(e) => setNoteForm({...noteForm, title: e.target.value})}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter note title"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Content</label>
-              <textarea
-                value={noteForm.content}
-                onChange={(e) => setNoteForm({...noteForm, content: e.target.value})}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter note content"
-                rows="6"
-              />
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                checked={noteForm.is_public}
-                onChange={(e) => setNoteForm({...noteForm, is_public: e.target.checked})}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label className="ml-2 block text-sm text-gray-700">Private Note</label>
-            </div>
-          </div>
-          <div className="flex justify-end space-x-3 mt-6">
+          {/* Floating Action Button for Mobile */}
+          <div className="sticky bottom-6 right-6 z-20 sm:hidden">
             <button
-              onClick={() => setShowCreateNoteModal(false)}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+              onClick={() => setShowCreateNoteModal(true)}
+              className="absolute bottom-0 right-4 bg-green-600 text-white w-14 h-14 rounded-full shadow-lg hover:bg-green-700 flex items-center justify-center transition-all duration-200 active:scale-95"
             >
-              Cancel
-            </button>
-            <button
-              onClick={createNote}
-              disabled={loading || !noteForm.title.trim() || !noteForm.content.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Creating...' : 'Create Note'}
+              <Plus className="h-6 w-6" />
             </button>
           </div>
         </div>
-      </div>
-    </div>
-  )}
+      );
 
-  </>
-);
+    default:
+      return null;
+  }
+};
+  const renderCollaborationModals = () => (
+    <>
+      {/* Create Channel Modal */}
+      <CreateChannelModal
+        isOpen={showCreateChannelModal}
+        onClose={() => {
+          setShowCreateChannelModal(false);
+          setError('');
+        }}
+        onCreate={createChannel}
+      />
+
+      {/* Channel Discovery Modal */}
+      {showDiscoveryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <ChannelDiscovery
+              onJoinChannel={(channelId) => {
+                setShowDiscoveryModal(false);
+                fetchChannels(); // Refresh channels list
+              }}
+              onClose={() => setShowDiscoveryModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Create Note Modal */}
+      {showCreateNoteModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-4 sm:top-20 mx-auto p-4 sm:p-5 border w-full max-w-md sm:w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Create Note</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Title</label>
+                  <input
+                    type="text"
+                    value={noteForm.title}
+                    onChange={(e) => setNoteForm({...noteForm, title: e.target.value})}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                    placeholder="Enter note title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Content</label>
+                  <textarea
+                    value={noteForm.content}
+                    onChange={(e) => setNoteForm({...noteForm, content: e.target.value})}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                    placeholder="Enter note content"
+                    rows="4"
+                  />
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={noteForm.is_public}
+                    onChange={(e) => setNoteForm({...noteForm, is_public: e.target.checked})}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label className="ml-2 block text-sm text-gray-700">Private Note</label>
+                </div>
+              </div>
+              <div className="flex flex-col xs:flex-row justify-end space-y-2 xs:space-y-0 xs:space-x-3 mt-6">
+                <button
+                  onClick={() => setShowCreateNoteModal(false)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 w-full xs:w-auto transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createNote}
+                  disabled={loading || !noteForm.title.trim() || !noteForm.content.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 w-full xs:w-auto transition-colors duration-200"
+                >
+                  {loading ? 'Creating...' : 'Create Note'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   const tabItems = getTabItems();
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
             {/* Logo and Title */}
-            <div className="flex items-center">
+            <div className="flex items-center min-w-0 flex-1">
               <img 
                 src="/bi.ico" 
                 alt="BI Logo" 
-                className="h-8 w-8 sm:h-12 sm:w-12 mr-2 sm:mr-3" 
+                className="h-6 w-6 sm:h-8 sm:w-8 lg:h-12 lg:w-12 mr-2 sm:mr-3 flex-shrink-0" 
               />
-              <h1 className="text-lg sm:text-xl font-semibold text-gray-800 truncate">
+              <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800 truncate">
                 <span className="hidden sm:inline">CRM BI Solutions</span>
                 <span className="sm:hidden">CRM BI</span>
               </h1>
             </div>
 
             {/* Desktop User Info and Logout */}
-            <div className="hidden sm:flex items-center space-x-4">
+            <div className="hidden sm:flex items-center space-x-3 lg:space-x-4">
               <button
                 onClick={handleProfileClick}
-                className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-200"
+                className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-200 text-sm lg:text-base"
               >
                 <User className="h-4 w-4 mr-1" />
                 <span className="hidden lg:inline">Profile</span>
@@ -1257,7 +1262,7 @@ case 'channels':
               </div>
               <button
                 onClick={onLogout}
-                className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-200"
+                className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-200 text-sm lg:text-base"
               >
                 <LogOut className="h-4 w-4 mr-1" />
                 <span className="hidden lg:inline">Logout</span>
@@ -1265,12 +1270,12 @@ case 'channels':
             </div>
 
             {/* Mobile Menu Button */}
-            <div className="sm:hidden">
+            <div className="sm:hidden flex-shrink-0">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="p-2 text-gray-600 hover:text-gray-800 transition-colors duration-200"
               >
-                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
             </div>
           </div>
@@ -1282,13 +1287,13 @@ case 'channels':
             <div className="px-4 py-3 border-b border-gray-200">
               <div className="flex items-center">
                 <User className="h-4 w-4 mr-2 text-gray-600" />
-                <span className="text-sm text-gray-600">{user?.first_name} {user?.last_name}</span>
-                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                <span className="text-sm text-gray-600 truncate">{user?.first_name} {user?.last_name}</span>
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs flex-shrink-0">
                   {user?.user_type}
                 </span>
               </div>
             </div>
-            <div className="py-2">
+            <div className="py-2 max-h-[70vh] overflow-y-auto">
               <button
                 onClick={() => {
                   handleProfileClick();
@@ -1303,7 +1308,10 @@ case 'channels':
               {tabItems.map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
+                  onClick={() => {
+                    handleTabChange(tab.id);
+                    setMobileMenuOpen(false);
+                  }}
                   className={`w-full text-left px-4 py-3 text-sm flex items-center ${
                     activeTab === tab.id
                       ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
@@ -1327,7 +1335,7 @@ case 'channels':
       </header>
 
       {/* Notifications */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4">
         {success && (
           <Notification type="success" message={success} onClose={() => setSuccess('')} />
         )}
@@ -1336,10 +1344,10 @@ case 'channels':
         )}
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-6">
         {/* Desktop Navigation Tabs */}
-        <div className="hidden sm:block border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-4 lg:space-x-8 overflow-x-auto">
+        <div className="hidden sm:block border-b border-gray-200 mb-4 lg:mb-6">
+          <nav className="-mb-px flex space-x-4 lg:space-x-6 xl:space-x-8 overflow-x-auto">
             {tabItems.map((tab) => (
               <button
                 key={tab.id}
@@ -1359,7 +1367,7 @@ case 'channels':
         </div>
 
         {/* Content */}
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-lg shadow-sm sm:shadow">
           {/* Collaboration Content */}
           {renderCollaborationContent()}
 
@@ -1383,7 +1391,7 @@ case 'channels':
                   onClick={() => setShowCustomerModal(true)}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto transition-colors duration-200"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Customer
                 </button>
               </div>
@@ -1409,7 +1417,7 @@ case 'channels':
           {activeTab === 'ai-analysis' && user?.user_type === 'admin' && (
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-                <div>
+                <div className="flex-1">
                   <h2 className="text-lg font-medium text-gray-900">AI Customer Insights</h2>
                   <p className="text-sm text-gray-600 mt-1">
                     Machine-powered analysis of your customer data
@@ -1417,7 +1425,8 @@ case 'channels':
                 </div>
                 <div className="flex items-center space-x-2 text-sm text-gray-500">
                   <RefreshCw className="w-4 h-4" />
-                  <span>Real-time Analysis</span>
+                  <span className="hidden xs:inline">Real-time Analysis</span>
+                  <span className="xs:hidden">Real-time</span>
                 </div>
               </div>
               
@@ -1444,7 +1453,7 @@ case 'channels':
                   }}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto transition-colors duration-200"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Customer
                 </button>
               </div>
@@ -1475,9 +1484,9 @@ case 'channels':
                       setCustomerForm({ name: '', email: '', phone: '', company: '', title: '' });
                       setShowCustomerModal(true);
                     }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center mx-auto transition-colors duration-200"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center mx-auto transition-colors duration-200 max-w-xs"
                   >
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Add Your First Customer
                   </button>
                 </div>
@@ -1511,7 +1520,7 @@ case 'channels':
                   onClick={() => setShowEmployeeModal(true)}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center w-full sm:w-auto transition-colors duration-200"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Employee
                 </button>
               </div>
@@ -1558,20 +1567,22 @@ case 'channels':
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
                 <h2 className="text-lg font-medium text-gray-900">Meter Issues</h2>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col xs:flex-row gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => setShowMeterIssueModal(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors duration-200"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center transition-colors duration-200 w-full xs:w-auto"
                   >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Report Issue
+                    <Plus className="h-4 w-4 mr-2" />
+                    <span className="hidden xs:inline">Report Issue</span>
+                    <span className="xs:hidden">Report</span>
                   </button>
                   <button
                     onClick={() => setShowProjectOfficerInteractionModal(true)}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center transition-colors duration-200"
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center transition-colors duration-200 w-full xs:w-auto"
                   >
-                    <MapPin className="h-4 w-4 mr-1" />
-                    Record Interaction
+                    <MapPin className="h-4 w-4 mr-2" />
+                    <span className="hidden xs:inline">Record Interaction</span>
+                    <span className="xs:hidden">Interaction</span>
                   </button>
                 </div>
               </div>
@@ -1634,10 +1645,11 @@ case 'channels':
                 <h2 className="text-lg font-medium text-gray-900">Field Interactions</h2>
                 <button
                   onClick={() => setShowProjectOfficerInteractionModal(true)}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center transition-colors duration-200"
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center transition-colors duration-200 w-full sm:w-auto"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Record Interaction
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span className="hidden xs:inline">Record Interaction</span>
+                  <span className="xs:hidden">Record</span>
                 </button>
               </div>
               {loading ? (
@@ -1658,9 +1670,9 @@ case 'channels':
                   </p>
                   <button
                     onClick={() => setShowProjectOfficerInteractionModal(true)}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center mx-auto mt-4 transition-colors duration-200"
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center justify-center mx-auto mt-4 transition-colors duration-200 max-w-xs"
                   >
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Record Your First Interaction
                   </button>
                 </div>
@@ -1708,7 +1720,7 @@ case 'channels':
           {(activeTab === 'customer-feedback' && (user?.user_type === 'admin' || user?.user_type === 'project_officer')) && (
             <div className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-                <div>
+                <div className="flex-1">
                   <h2 className="text-lg font-medium text-gray-900">Customer Feedback</h2>
                   <p className="text-sm text-gray-600 mt-1">
                     {customerFeedbacks.length} feedback{customerFeedbacks.length !== 1 ? 's' : ''} received
@@ -1716,24 +1728,24 @@ case 'channels':
                 </div>
                 
                 {/* Feedback Stats */}
-                <div className="flex gap-4 text-sm">
+                <div className="flex gap-3 sm:gap-4 text-sm">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-xl sm:text-2xl font-bold text-blue-600">
                       {customerFeedbacks.filter(f => f.customer_rating >= 4).length}
                     </div>
-                    <div className="text-gray-600">Positive</div>
+                    <div className="text-gray-600 text-xs sm:text-sm">Positive</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-600">
+                    <div className="text-xl sm:text-2xl font-bold text-gray-600">
                       {customerFeedbacks.filter(f => f.customer_rating === 3).length}
                     </div>
-                    <div className="text-gray-600">Neutral</div>
+                    <div className="text-gray-600 text-xs sm:text-sm">Neutral</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
+                    <div className="text-xl sm:text-2xl font-bold text-orange-600">
                       {customerFeedbacks.filter(f => f.customer_rating <= 2).length}
                     </div>
-                    <div className="text-gray-600">Needs Improvement</div>
+                    <div className="text-gray-600 text-xs sm:text-sm">Needs Improvement</div>
                   </div>
                 </div>
               </div>
@@ -1742,6 +1754,13 @@ case 'channels':
                 feedbacks={customerFeedbacks}
                 loading={feedbackLoading}
               />
+            </div>
+          )}
+
+          {/* Public Feedback Tab (Admin Only) */}
+          {activeTab === 'public-feedback' && user?.user_type === 'admin' && (
+            <div className="p-4 sm:p-6">
+              <FeedbackManagement />
             </div>
           )}
         </div>
