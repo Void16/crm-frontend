@@ -37,7 +37,45 @@ export const apiCall = async (endpoint, options = {}) => {
     
   } catch (err) {
     console.error('API Error:', err);
-    // FIX: Return proper error object instead of null
+    return { 
+      data: { detail: 'Network error: Unable to connect to server' }, 
+      status: 0, 
+      ok: false 
+    };
+  }
+};
+
+// Helper function for file uploads
+export const apiFileUpload = async (endpoint, formData) => {
+  const token = localStorage.getItem('token');
+  
+  try {
+    console.log('File Upload API Call:', `${API_BASE_URL}${endpoint}`);
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+        // Don't set Content-Type for FormData - let browser set it with boundary
+      },
+      body: formData,
+    });
+
+    console.log('File Upload Response Status:', response.status);
+    
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      window.location.reload();
+      return { data: { detail: 'Authentication required' }, status: 401, ok: false };
+    }
+
+    const data = await response.json();
+    console.log('File Upload Response Data:', data);
+    
+    return { data, status: response.status, ok: response.ok };
+    
+  } catch (err) {
+    console.error('File Upload API Error:', err);
     return { 
       data: { detail: 'Network error: Unable to connect to server' }, 
       status: 0, 
@@ -62,7 +100,7 @@ export const authAPI = {
   
   getCurrentUser: () => apiCall('/auth/employees/me/'),
   
-  // 2FA Methods - Updated to match your URL structure
+  // 2FA Methods
   updateProfile: (data) => apiCall('/auth/employees/update_profile/', {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -104,7 +142,7 @@ export const interactionAPI = {
   }),
 };
 
-// Collaboration API calls - UPDATED WITH CHANNEL DISCOVERY
+// Collaboration API calls
 export const collaborationAPI = {
   // Channels
   getChannels: () => apiCall('/auth/channels/'),
@@ -113,7 +151,7 @@ export const collaborationAPI = {
     body: JSON.stringify(data),
   }),
   
-  // Channel Discovery - MOVED FROM adminAPI
+  // Channel Discovery
   discoverChannels: () => apiCall('/auth/channels/discover/'),
   joinChannel: (channelId) => apiCall(`/auth/channels/${channelId}/join/`, {
     method: 'POST',
@@ -209,6 +247,50 @@ export const projectManagersAPI = {
   }),
 };
 
+// Document Reports API calls - FIXED VERSION
+export const documentReportsAPI = {
+  // Get all document reports (admin sees all, users see only their own)
+  getAll: () => apiCall('/reports/document-reports/'),
+  
+  // Get current user's document reports
+  getMyReports: () => apiCall('/reports/document-reports/my_reports/'),
+  
+  // Create a new document report (file upload)
+  create: (formData) => apiFileUpload('/reports/document-reports/', formData),
+  
+  // Get a specific report
+  get: (id) => apiCall(`/reports/document-reports/${id}/`),
+  
+  // Update a report
+  update: (id, reportData) => apiCall(`/reports/document-reports/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(reportData),
+  }),
+  
+  // Delete a report
+  delete: (id) => apiCall(`/reports/document-reports/${id}/`, {
+    method: 'DELETE',
+  }),
+  
+  // Submit a report for weekly email
+  submit: (id) => apiCall(`/reports/document-reports/${id}/submit/`, {
+    method: 'POST',
+  }),
+  
+  // Download document file - FIXED: No auth, no URL manipulation
+  downloadDocument: (fileUrl) => {
+    // Media files are publicly accessible, no auth needed
+    // fileUrl is already an absolute URL from the serializer
+    console.log('📥 Downloading from:', fileUrl);
+    
+    return fetch(fileUrl, {
+      method: 'GET',
+      // NO Authorization header - media files should be public
+      // NO API_BASE_URL prepending - fileUrl is already absolute
+    });
+  },
+};
+
 // Admin API calls
 export const adminAPI = {
   getEmployees: () => apiCall('/auth/employees/'),
@@ -239,7 +321,7 @@ export const adminAPI = {
   getAllProjectOfficerInteractions: () => apiCall('/project-managers/interactions/'),
   getProjectOfficerInteractionStats: (timeRange = '30') => apiCall(`/project-managers/admin-dashboard/interaction_stats/?time_range=${timeRange}`),
   
-  // 👇 PUBLIC FEEDBACK MANAGEMENT - ADDED HERE 👇
+  // Public Feedback Management
   getPublicFeedback: (params = '') => apiCall(`/auth/public-feedback/${params}`),
   updateFeedbackStatus: (id, statusData) => apiCall(`/auth/public-feedback/${id}/update_status/`, {
     method: 'POST',
@@ -252,6 +334,11 @@ export const adminAPI = {
   deleteFeedback: (id) => apiCall(`/auth/public-feedback/${id}/`, {
     method: 'DELETE',
   }),
+
+  // Admin Document Reports Management
+  sendWeeklyDocumentReports: () => apiCall('/reports/admin-document-reports/send_weekly_reports/', {
+    method: 'POST',
+  }),
 };
 
 // Combined API object for easy imports
@@ -261,6 +348,7 @@ export const api = {
   interactions: interactionAPI,
   collaboration: collaborationAPI,
   projectManagers: projectManagersAPI,
+  documentReports: documentReportsAPI,
   admin: adminAPI,
 };
 

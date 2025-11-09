@@ -3,7 +3,7 @@ import {
   Users, MessageSquare, Plus, User, Settings, 
   BarChart3, FileText, LogOut, Building2, Menu, X,
   AlertTriangle, Wrench, CheckCircle, Clock, Activity, MessageCircle,
-  MapPin, RefreshCw, Globe 
+  MapPin, RefreshCw, Globe, Upload 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { customerAPI, interactionAPI, adminAPI, projectManagersAPI, api, collaborationAPI } from '../services/api';
@@ -21,6 +21,7 @@ import AIDashboard from '../components/ai/AIDashboard';
 import RealTimeDashboard from '../components/Dashboard/RealTimeDashboard';
 import CreateChannelModal from '../components/collaboration/CreateChannelModal';
 import ChannelDiscovery from '../components/collaboration/ChannelDiscovery';
+import DocumentReportsList from '../components/reports/DocumentReportsList';
 
 // Project Officer Components
 import MeterIssueForm from '../components/project-officer/MeterIssueForm';
@@ -70,6 +71,8 @@ const Dashboard = ({ user, onLogout }) => {
   const [adminInteractions, setAdminInteractions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [documentReports, setDocumentReports] = useState([]);
+  const [documentReportsLoading, setDocumentReportsLoading] = useState(false);
   
   // Collaboration States
   const [activities, setActivities] = useState([]);
@@ -334,6 +337,26 @@ const Dashboard = ({ user, onLogout }) => {
       } finally {
         setLoading(false);
       }
+    }
+  };
+
+  const fetchDocumentReports = async () => {
+    setDocumentReportsLoading(true);
+    try {
+      console.log('🔄 Fetching document reports...');
+      const result = await api.documentReports.getMyReports();
+      console.log('📨 Document reports response:', result);
+      
+      if (result?.ok) {
+        setDocumentReports(result.data);
+        console.log(`✅ Loaded ${result.data.length} document reports`);
+      } else {
+        console.error('❌ Failed to fetch document reports:', result);
+      }
+    } catch (error) {
+      console.error('💥 Error fetching document reports:', error);
+    } finally {
+      setDocumentReportsLoading(false);
     }
   };
 
@@ -613,6 +636,13 @@ const Dashboard = ({ user, onLogout }) => {
           })
         );
       }
+
+      promises.push(
+        fetchDocumentReports().catch(err => {
+          console.warn('⚠️ Failed to fetch document reports:', err);
+          return null;
+        })
+      );
 
       // Wait for all API calls to complete (success or failure)
       await Promise.all(promises);
@@ -965,6 +995,7 @@ const Dashboard = ({ user, onLogout }) => {
       { id: 'assigned-issues', label: 'My Assigned Issues', icon: Wrench },
       { id: 'field-interactions', label: 'Field Interactions', icon: MapPin },
       { id: 'customer-feedback', label: 'Customer Feedback', icon: MessageCircle },
+      { id: 'document-reports', label: 'Document Reports', icon: Upload }, 
       ...collaborationTabs,
     ];
 
@@ -978,6 +1009,7 @@ const Dashboard = ({ user, onLogout }) => {
       { id: 'field-interactions', label: 'Field Interactions', icon: MapPin },
       { id: 'customer-feedback', label: 'Customer Feedback', icon: MessageCircle },
       { id: 'public-feedback', label: 'Public Feedback', icon: MessageSquare },
+      { id: 'document-reports', label: 'Document Reports', icon: Upload },
       ...collaborationTabs,
       { id: 'reports', label: 'Reports', icon: BarChart3 },
       { id: 'audit', label: 'Audit Logs', icon: FileText }
@@ -989,7 +1021,7 @@ const Dashboard = ({ user, onLogout }) => {
       case 'project_officer':
         return projectOfficerTabs;
       default:
-        return [...baseTabs, ...collaborationTabs];
+        return [...baseTabs, { id: 'document-reports', label: 'Document Reports', icon: Upload }, ...collaborationTabs];
     }
   };
 
@@ -1538,6 +1570,17 @@ const Dashboard = ({ user, onLogout }) => {
               ) : (
                 <p className="text-gray-500 text-center py-8">No employees found.</p>
               )}
+            </div>
+          )}
+
+          {/* Document Reports Tab (All Users) */}
+          {activeTab === 'document-reports' && (
+            <div className="p-4 sm:p-6">
+              <DocumentReportsList 
+                reports={documentReports}
+                loading={documentReportsLoading}
+                onRefresh={fetchDocumentReports}
+              />
             </div>
           )}
 
