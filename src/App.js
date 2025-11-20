@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext'; // Import from contexts
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Profile from './components/Profile';
 import SalesDashboard from './pages/SalesDashboard';
 import ProjectOfficerDashboard from './pages/ProjectOfficerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 
-// Create a wrapper component for Profile to handle navigation
+// ⭐ ADD THIS IMPORT
+import InstallPrompt from "./InstallPrompt";
+
+// Wrapper for Profile
 function ProfileWrapper() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -67,7 +70,7 @@ function DashboardSelector({ onLogout }) {
   }
 }
 
-// Protected Route component
+// Protected Route
 const ProtectedRoute = ({ children }) => {
   const { token, loading } = useAuth();
   
@@ -85,7 +88,7 @@ const ProtectedRoute = ({ children }) => {
   return token ? children : <Navigate to="/login" />;
 };
 
-// Role-based route protection
+// Admin route
 const AdminRoute = ({ children }) => {
   const { token, user, loading } = useAuth();
   
@@ -100,9 +103,12 @@ const AdminRoute = ({ children }) => {
     );
   }
   
-  return token && user?.user_type === 'admin' ? children : <Navigate to="/dashboard" />;
+  return token && user?.user_type === 'admin'
+    ? children
+    : <Navigate to="/dashboard" />;
 };
 
+// Project officer route
 const ProjectOfficerRoute = ({ children }) => {
   const { token, user, loading } = useAuth();
   
@@ -117,9 +123,12 @@ const ProjectOfficerRoute = ({ children }) => {
     );
   }
   
-  return token && user?.user_type === 'project_officer' ? children : <Navigate to="/dashboard" />;
+  return token && user?.user_type === 'project_officer'
+    ? children
+    : <Navigate to="/dashboard" />;
 };
 
+// Sales/employee route
 const SalesEmployeeRoute = ({ children }) => {
   const { token, user, loading } = useAuth();
   
@@ -134,15 +143,16 @@ const SalesEmployeeRoute = ({ children }) => {
     );
   }
   
-  return token && (user?.user_type === 'employee' || user?.user_type === 'sales') ? children : <Navigate to="/dashboard" />;
+  return token && (user?.user_type === 'employee' || user?.user_type === 'sales')
+    ? children
+    : <Navigate to="/dashboard" />;
 };
 
-// Main App component that uses the auth context
+// Main App content
 function AppContent() {
   const { user, token, login, register, logout, loading } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
 
-  // Show app-level loading screen
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -156,9 +166,13 @@ function AppContent() {
 
   return (
     <Router>
+
+      {/* ⭐ PWA Install Prompt */}
+      <InstallPrompt />
+
       <div className="App">
         <Routes>
-          {/* Login route */}
+
           <Route 
             path="/login" 
             element={
@@ -173,16 +187,12 @@ function AppContent() {
               )
             } 
           />
-          
-          {/* Redirect root to appropriate page */}
+
           <Route 
             path="/" 
-            element={
-              token ? <Navigate to="/dashboard" /> : <Navigate to="/login" />
-            } 
+            element={token ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
           />
-          
-          {/* Main dashboard route */}
+
           <Route 
             path="/dashboard" 
             element={
@@ -191,8 +201,7 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
-          
-          {/* Role-specific dashboard routes */}
+
           <Route 
             path="/sales-dashboard" 
             element={
@@ -201,7 +210,7 @@ function AppContent() {
               </SalesEmployeeRoute>
             } 
           />
-          
+
           <Route 
             path="/project-officer-dashboard" 
             element={
@@ -210,7 +219,7 @@ function AppContent() {
               </ProjectOfficerRoute>
             } 
           />
-          
+
           <Route 
             path="/admin-dashboard" 
             element={
@@ -219,8 +228,7 @@ function AppContent() {
               </AdminRoute>
             } 
           />
-          
-          {/* Profile route */}
+
           <Route 
             path="/profile" 
             element={
@@ -229,16 +237,17 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
-          
-          {/* Fallback route */}
+
           <Route path="*" element={<Navigate to="/dashboard" />} />
+
         </Routes>
       </div>
+
     </Router>
   );
 }
 
-// Wrap the main App with AuthProvider
+// Wrap AppContent in AuthProvider
 function App() {
   return (
     <AuthProvider>
