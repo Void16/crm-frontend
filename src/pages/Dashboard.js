@@ -352,8 +352,20 @@ const createJobCard = async (jobCardData) => {
     console.log('📍 Latitude:', dataToSend.latitude, 'Type:', typeof dataToSend.latitude);
     console.log('📍 Longitude:', dataToSend.longitude, 'Type:', typeof dataToSend.longitude);
     
+    // ✅ FIXED: Use dynamic API URL based on environment
+    let apiUrl;
+    if (window.location.origin.includes('render.com')) {
+      apiUrl = 'https://crm-api-romn.onrender.com';
+      console.log('🌐 Production: Using API URL:', apiUrl);
+    } else {
+      apiUrl = 'http://localhost:8000';
+      console.log('💻 Development: Using API URL:', apiUrl);
+    }
+    
+    console.log('🔗 Final API URL:', `${apiUrl}/api/auth/jobcards/`);
+    
     // Use fetch directly with JSON
-    const response = await fetch('http://localhost:8000/api/auth/jobcards/', {
+    const response = await fetch(`${apiUrl}/api/auth/jobcards/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
