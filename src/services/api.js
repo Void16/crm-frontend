@@ -84,6 +84,67 @@ export const apiFileUpload = async (endpoint, formData) => {
   }
 };
 
+// Helper function for multipart form data (JSON + files)
+export const apiMultipart = async (endpoint, data, fileFields = []) => {
+  const token = localStorage.getItem('token');
+  
+  try {
+    console.log('Multipart API Call:', `${API_BASE_URL}${endpoint}`);
+    
+    const formData = new FormData();
+    
+    // Add all regular fields
+    Object.keys(data).forEach(key => {
+      if (fileFields.includes(key)) {
+        // Handle file fields
+        if (data[key] instanceof File || data[key] instanceof Blob) {
+          formData.append(key, data[key]);
+        } else if (data[key] !== null && data[key] !== undefined) {
+          formData.append(key, data[key]);
+        }
+      } else {
+        // Handle non-file fields
+        if (data[key] !== null && data[key] !== undefined) {
+          if (typeof data[key] === 'object') {
+            formData.append(key, JSON.stringify(data[key]));
+          } else {
+            formData.append(key, data[key]);
+          }
+        }
+      }
+    });
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    });
+
+    console.log('Multipart Response Status:', response.status);
+    
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      window.location.reload();
+      return { data: { detail: 'Authentication required' }, status: 401, ok: false };
+    }
+
+    const responseData = await response.json();
+    console.log('Multipart Response Data:', responseData);
+    
+    return { data: responseData, status: response.status, ok: response.ok };
+    
+  } catch (err) {
+    console.error('Multipart API Error:', err);
+    return { 
+      data: { detail: 'Network error: Unable to connect to server' }, 
+      status: 0, 
+      ok: false 
+    };
+  }
+};
+
 // Auth API calls
 export const authAPI = {
   login: (credentials) => apiCall('/auth/login/', {
@@ -96,6 +157,13 @@ export const authAPI = {
   register: (userData) => apiCall('/auth/register/', {
     method: 'POST',
     body: JSON.stringify(userData),
+  }),
+  technicianRegister: (userData) => apiCall('/auth/register/', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...userData,
+      user_type: 'technician',
+    }),
   }),
   
   getCurrentUser: () => apiCall('/auth/employees/me/'),
@@ -247,6 +315,209 @@ export const projectManagersAPI = {
   }),
 };
 
+// Technician API calls - NEW SECTION
+export const technicianAPI = {
+  // Job Cards
+  getMyJobCards: () => apiCall('/auth/jobcards/my_jobs/'),
+  getAvailableJobs: () => apiCall('/auth/jobcards/available_jobs/'),
+  getJobCard: (id) => apiCall(`/auth/jobcards/${id}/`),
+  createJobCard: (jobCardData) => apiMultipart('/auth/jobcards/', jobCardData, ['before_photos', 'after_photos']),
+  updateJobCard: (id, jobCardData) => apiCall(`/auth/jobcards/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(jobCardData),
+  }),
+  deleteJobCard: (id) => apiCall(`/auth/jobcards/${id}/`, {
+    method: 'DELETE',
+  }),
+  
+  // Job Card Actions
+  assignToMe: (id) => apiCall(`/auth/jobcards/${id}/assign_to_me/`, {
+    method: 'POST',
+  }),
+  startJob: (id) => apiCall(`/auth/jobcards/${id}/start_job/`, {
+    method: 'POST',
+  }),
+  completeJob: (id, completionData) => apiMultipart(`/auth/jobcards/${id}/complete_job/`, completionData, 
+    ['customer_signature', 'technician_signature', 'after_photos']),
+  updateJobStatus: (id, status) => apiCall(`/auth/jobcards/${id}/update_status/`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  }),
+  
+  // Photos
+  uploadBeforePhoto: (id, photoFile) => {
+    const formData = new FormData();
+    formData.append('type', 'before');
+    formData.append('photo', photoFile);
+    return apiFileUpload(`/auth/jobcards/${id}/upload_photos/`, formData);
+  },
+  uploadAfterPhoto: (id, photoFile) => {
+    const formData = new FormData();
+    formData.append('type', 'after');
+    formData.append('photo', photoFile);
+    return apiFileUpload(`/auth/jobcards/${id}/upload_photos/`, formData);
+  },
+  
+  // Signatures
+  uploadCustomerSignature: (id, signatureData) => apiCall(`/auth/jobcards/${id}/upload_signature/`, {
+    method: 'POST',
+    body: JSON.stringify({ 
+      type: 'customer',
+      signature: signatureData 
+    }),
+  }),
+  uploadTechnicianSignature: (id, signatureData) => apiCall(`/auth/jobcards/${id}/upload_signature/`, {
+    method: 'POST',
+    body: JSON.stringify({ 
+      type: 'technician',
+      signature: signatureData 
+    }),
+  }),
+  
+  // Materials
+  addMaterialUsage: (id, materialData) => apiCall(`/auth/jobcards/${id}/add_material/`, {
+    method: 'POST',
+    body: JSON.stringify(materialData),
+  }),
+  getMaterialUsage: (id) => apiCall(`/auth/jobcards/${id}/materials_used/`),
+  
+  // History
+  getJobCardHistory: (id) => apiCall(`/auth/jobcards/${id}/history/`),
+  
+  // Schedule
+  getMySchedule: (startDate, endDate) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    return apiCall(`/auth/schedule/my_schedule/?${params}`);
+  },
+  createScheduleEntry: (scheduleData) => apiCall('/auth/schedule/', {
+    method: 'POST',
+    body: JSON.stringify(scheduleData),
+  }),
+  updateScheduleEntry: (id, scheduleData) => apiCall(`/auth/schedule/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(scheduleData),
+  }),
+  deleteScheduleEntry: (id) => apiCall(`/auth/schedule/${id}/`, {
+    method: 'DELETE',
+  }),
+  
+  // Inventory
+  getMyInventory: () => apiCall('/auth/inventory/my_inventory/'),
+  updateInventoryItem: (id, quantity) => apiCall(`/auth/inventory/${id}/update_quantity/`, {
+    method: 'POST',
+    body: JSON.stringify({ quantity }),
+  }),
+  requestMaterial: (materialData) => apiCall('/auth/inventory/request_material/', {
+    method: 'POST',
+    body: JSON.stringify(materialData),
+  }),
+  
+  // Reports
+  generateJobReport: (id) => apiCall(`/auth/jobcards/${id}/generate_report/`),
+  getDailyReport: (date) => {
+    const params = new URLSearchParams({ date: date || new Date().toISOString().split('T')[0] });
+    return apiCall(`/auth/reports/daily/?${params}`);
+  },
+  getWeeklyReport: (weekStart) => {
+    const params = new URLSearchParams();
+    if (weekStart) params.append('week_start', weekStart);
+    return apiCall(`/auth/reports/weekly/?${params}`);
+  },
+  
+  // Technician Profile
+  updateTechnicianProfile: (data) => apiCall('/auth/technicians/me/', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }),
+  setAvailability: (isAvailable) => apiCall('/auth/technicians/set_availability/', {
+    method: 'POST',
+    body: JSON.stringify({ is_available: isAvailable }),
+  }),
+  
+  // Statistics
+  getTechnicianStats: (timeRange = '30') => apiCall(`/auth/technicians/stats/?time_range=${timeRange}`),
+};
+
+// Technician Admin API calls (for admin users)
+export const technicianAdminAPI = {
+  // Technicians Management
+  getAllTechnicians: () => apiCall('/auth/technicians/'),
+  createTechnician: (technicianData) => apiCall('/auth/technicians/', {
+    method: 'POST',
+    body: JSON.stringify(technicianData),
+  }),
+  updateTechnician: (id, technicianData) => apiCall(`/auth/technicians/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(technicianData),
+  }),
+  deleteTechnician: (id) => apiCall(`/auth/technicians/${id}/`, {
+    method: 'DELETE',
+  }),
+  
+  // All Job Cards (Admin view)
+  getAllJobCards: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiCall(`/auth/jobcards/?${queryString}`);
+  },
+  
+  // Assign Job Cards
+  assignJobCard: (jobCardId, technicianId) => apiCall(`/auth/jobcards/${jobCardId}/assign/`, {
+    method: 'POST',
+    body: JSON.stringify({ technician_id: technicianId }),
+  }),
+  
+  // Technician Performance
+  getTechnicianPerformance: (technicianId, timeRange = '30') => 
+    apiCall(`/auth/technicians/${technicianId}/performance/?time_range=${timeRange}`),
+  getAllTechniciansPerformance: (timeRange = '30') => 
+    apiCall(`/auth/technicians/performance/?time_range=${timeRange}`),
+  
+  // Technician Schedule (Admin view)
+  getAllSchedules: (date) => {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    return apiCall(`/auth/schedule/?${params}`);
+  },
+  
+  // Inventory Management (Admin)
+  getAllInventory: () => apiCall('/auth/inventory/'),
+  createInventoryItem: (itemData) => apiCall('/auth/inventory/', {
+    method: 'POST',
+    body: JSON.stringify(itemData),
+  }),
+  updateInventoryItem: (id, itemData) => apiCall(`/auth/inventory/${id}/`, {
+    method: 'PUT',
+    body: JSON.stringify(itemData),
+  }),
+  deleteInventoryItem: (id) => apiCall(`/auth/inventory/${id}/`, {
+    method: 'DELETE',
+  }),
+  
+  // Service Reports
+  getAllServiceReports: () => apiCall('/auth/service-reports/'),
+  generateServiceReport: (reportData) => apiCall('/auth/service-reports/generate/', {
+    method: 'POST',
+    body: JSON.stringify(reportData),
+  }),
+  getServiceReport: (id) => apiCall(`/auth/service-reports/${id}/`),
+  
+  // Technician Analytics
+  getJobTypeAnalytics: (startDate, endDate) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    return apiCall(`/auth/analytics/job_types/?${params}`);
+  },
+  getRevenueAnalytics: (startDate, endDate) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    return apiCall(`/auth/analytics/revenue/?${params}`);
+  },
+};
+
 // Document Reports API calls - FIXED VERSION
 export const documentReportsAPI = {
   // Get all document reports (admin sees all, users see only their own)
@@ -339,6 +610,17 @@ export const adminAPI = {
   sendWeeklyDocumentReports: () => apiCall('/reports/admin-document-reports/send_weekly_reports/', {
     method: 'POST',
   }),
+
+  // Technician Admin Functions
+  ...technicianAdminAPI,
+};
+
+// Customer Meter Verification API
+export const meterVerificationAPI = {
+  verify: (meterNumber) => apiCall('/auth/customer-meters/verify/', {
+    method: 'POST',
+    body: JSON.stringify({ meter_number: meterNumber }),
+  }),
 };
 
 // Combined API object for easy imports
@@ -350,6 +632,9 @@ export const api = {
   projectManagers: projectManagersAPI,
   documentReports: documentReportsAPI,
   admin: adminAPI,
+  technician: technicianAPI,
+  technicianAdmin: technicianAdminAPI,
+  meterVerification: meterVerificationAPI,
 };
 
 export default api;
