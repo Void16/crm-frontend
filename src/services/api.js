@@ -18,9 +18,19 @@ export const apiCall = async (endpoint, options = {}) => {
     console.log('API Response Status:', response.status);
     
     if (response.status === 401) {
-      localStorage.removeItem('token');
-      window.location.reload();
-      return { data: { detail: 'Authentication required' }, status: 401, ok: false };
+      // Don't redirect on login endpoint — just return the error
+      // so the Login component can display the "Invalid credentials" message
+      const isLoginEndpoint = endpoint.includes('/auth/login/');
+
+      if (!isLoginEndpoint) {
+        // Expired/invalid session on a protected endpoint — clear and redirect
+        localStorage.removeItem('token');
+        localStorage.removeItem('userData');
+        window.location.href = '/login';
+      }
+
+      const data = await response.json().catch(() => ({ error: 'Authentication required' }));
+      return { data, status: 401, ok: false };
     }
 
     // Handle 204 No Content responses
@@ -64,9 +74,16 @@ export const apiFileUpload = async (endpoint, formData) => {
     console.log('File Upload Response Status:', response.status);
     
     if (response.status === 401) {
-      localStorage.removeItem('token');
-      window.location.reload();
-      return { data: { detail: 'Authentication required' }, status: 401, ok: false };
+      const isLoginEndpoint = endpoint.includes('/auth/login/');
+
+      if (!isLoginEndpoint) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userData');
+        window.location.href = '/login';
+      }
+
+      const data = await response.json().catch(() => ({ error: 'Authentication required' }));
+      return { data, status: 401, ok: false };
     }
 
     const data = await response.json();
@@ -125,9 +142,16 @@ export const apiMultipart = async (endpoint, data, fileFields = []) => {
     console.log('Multipart Response Status:', response.status);
     
     if (response.status === 401) {
-      localStorage.removeItem('token');
-      window.location.reload();
-      return { data: { detail: 'Authentication required' }, status: 401, ok: false };
+      const isLoginEndpoint = endpoint.includes('/auth/login/');
+
+      if (!isLoginEndpoint) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userData');
+        window.location.href = '/login';
+      }
+
+      const responseData = await response.json().catch(() => ({ error: 'Authentication required' }));
+      return { data: responseData, status: 401, ok: false };
     }
 
     const responseData = await response.json();
@@ -305,7 +329,6 @@ export const projectManagersAPI = {
     body: JSON.stringify(interactionData),
   }),
   getMyInteractions: () => apiCall('/project-managers/interactions/my_interactions/'),
-  getAllInteractions: () => apiCall('/project-managers/interactions/'),
   updateInteraction: (id, interactionData) => apiCall(`/project-managers/interactions/${id}/`, {
     method: 'PUT',
     body: JSON.stringify(interactionData),
@@ -315,7 +338,7 @@ export const projectManagersAPI = {
   }),
 };
 
-// Technician API calls - NEW SECTION
+// Technician API calls
 export const technicianAPI = {
   // Job Cards
   getMyJobCards: () => apiCall('/auth/jobcards/my_jobs/'),
@@ -518,7 +541,7 @@ export const technicianAdminAPI = {
   },
 };
 
-// Document Reports API calls - FIXED VERSION
+// Document Reports API calls
 export const documentReportsAPI = {
   // Get all document reports (admin sees all, users see only their own)
   getAll: () => apiCall('/reports/document-reports/'),
@@ -548,16 +571,11 @@ export const documentReportsAPI = {
     method: 'POST',
   }),
   
-  // Download document file - FIXED: No auth, no URL manipulation
+  // Download document file - Media files are publicly accessible, no auth needed
   downloadDocument: (fileUrl) => {
-    // Media files are publicly accessible, no auth needed
-    // fileUrl is already an absolute URL from the serializer
     console.log('📥 Downloading from:', fileUrl);
-    
     return fetch(fileUrl, {
       method: 'GET',
-      // NO Authorization header - media files should be public
-      // NO API_BASE_URL prepending - fileUrl is already absolute
     });
   },
 };

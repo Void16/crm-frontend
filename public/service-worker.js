@@ -1,8 +1,8 @@
 // service-worker.js
 
 // ⚠️ IMPORTANT: Update these version numbers EVERY TIME you deploy changes
-const CACHE_NAME = "crm-cache-v1.3.0";
-const APP_VERSION = "1.3.0";
+const CACHE_NAME = "crm-cache-v1.4.0";
+const APP_VERSION = "1.4.0";
 
 // App shell - static assets that make up your PWA
 const urlsToCache = [
