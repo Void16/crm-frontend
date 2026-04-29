@@ -4,7 +4,8 @@ import { authAPI } from '../services/api';
 export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);       // Only for initialization
+  const [loginLoading, setLoginLoading] = useState(false); // Only for login action
 
   // Fetch user data on mount if token exists
   useEffect(() => {
@@ -49,16 +50,17 @@ export const useAuth = () => {
   }, []);
 
   const login = async (credentials) => {
-    setLoading(true);
+    setLoginLoading(true); // ← use loginLoading, NOT loading
     const result = await authAPI.login(credentials);
     
-    console.log('🔵 LOGIN API RESULT:', result); // Debug log
+    console.log('🔵 LOGIN API RESULT:', result);
+    console.log('🔴 RAW API RESULT:', JSON.stringify(result));
     
     if (result?.ok) {
       // Check if 2FA is required
       if (result.data.requires_2fa) {
         console.log('✅ 2FA is required');
-        setLoading(false);
+        setLoginLoading(false);
         return { 
           success: false, 
           requires_2fa: true,
@@ -73,13 +75,13 @@ export const useAuth = () => {
         localStorage.setItem('token', result.data.access);
         localStorage.setItem('userData', JSON.stringify(result.data.user));
         setUser(result.data.user);
-        setLoading(false);
+        setLoginLoading(false);
         return { success: true };
       }
       
       // If we get here, unexpected response
       console.error('❌ Unexpected response format:', result.data);
-      setLoading(false);
+      setLoginLoading(false);
       return { 
         success: false, 
         message: 'Unexpected response from server' 
@@ -87,7 +89,7 @@ export const useAuth = () => {
     } else {
       // Login failed
       console.error('❌ Login failed:', result);
-      setLoading(false);
+      setLoginLoading(false);
       return { 
         success: false, 
         message: result?.data?.error || 'Invalid credentials' 
@@ -96,13 +98,11 @@ export const useAuth = () => {
   };
 
   const register = async (userData) => {
-    setLoading(true);
     const result = await authAPI.register(userData);
     
     console.log('Register API result:', result);
     
     if (result?.ok) {
-      setLoading(false);
       return { success: true };
     } else {
       let errorMessage = 'Registration failed';
@@ -125,7 +125,6 @@ export const useAuth = () => {
         }
       }
       
-      setLoading(false);
       return { success: false, message: errorMessage };
     }
   };
@@ -141,7 +140,8 @@ export const useAuth = () => {
   return {
     user,
     token,
-    loading,
+    loading,        // true only during app initialization
+    loginLoading,   // true only during login API call
     login,
     register,
     logout,

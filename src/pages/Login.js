@@ -1,40 +1,37 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Building2, Shield } from 'lucide-react';
+import { Eye, EyeOff, Shield } from 'lucide-react';
 import Modal from '../components/common/Modal';
 import Register from './Register';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login = ({ onLogin, onRegister, showRegister, onShowRegister, onHideRegister }) => {
+  const { loginLoading } = useAuth();
   const [loginForm, setLoginForm] = useState({ username: '', password: '', token: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [requires2FA, setRequires2FA] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     console.log('🔵 Login form data:', loginForm);
-    
-    setLoading(true);
     setError('');
     
     const result = await onLogin(loginForm);
     
     console.log('🔵 Login result:', result);
+    console.log('🔴 FULL RESULT:', JSON.stringify(result));
     
     if (result.requires_2fa) {
       console.log('✅ Showing 2FA input');
       setRequires2FA(true);
-      setLoading(false);
     } else if (!result.success) {
       console.log('❌ Login failed:', result.message);
       setError(result.message);
       setRequires2FA(false);
-      setLoading(false);
     } else {
       console.log('✅ Login successful, redirecting...');
       setRequires2FA(false);
-      setLoading(false);
     }
   };
 
@@ -126,10 +123,10 @@ const Login = ({ onLogin, onRegister, showRegister, onShowRegister, onHideRegist
           
           <button
             type="submit"
-            disabled={loading}
+            disabled={loginLoading}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
           >
-            {loading ? (
+            {loginLoading ? (
               <>Logging in...</>
             ) : requires2FA ? (
               <>
